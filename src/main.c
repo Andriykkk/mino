@@ -3,21 +3,17 @@
 #include <time.h>
 #include <math.h>
 
-int array[][2] = {
+float array[][2] = {
 	{10, 20},
-	{12, 24},
-	{14, 28},
-	{16, 32}};
-float learning_rate = 0.001;
+	{20, 40},
+	{30, 60},
+	{40, 80}};
+float learning_rate = 0.0001;
+float eps = 0.0001;
 
 float randf()
 {
-	return (float)(rand()) / (float)(rand());
-}
-
-float count_error(float w, float x, float y)
-{
-	return y - (w * x);
+	return (float)rand() / (float)RAND_MAX;
 }
 
 float get_forward(float w, float x)
@@ -25,30 +21,37 @@ float get_forward(float w, float x)
 	return w * x;
 }
 
+float count_error(float w, float x, float y)
+{
+	return 1.0 / 2.0 * powf(get_forward(w, x) - y, 2.0);
+}
+
 int main()
 {
 	srand(time(NULL));
 
-	float w = randf();
-	float error_sum = 0;
+	float w = 0.0;
 
-	float result = get_forward(w, 20);
+	w = randf();
+
+	float result = get_forward(w, array[0][0]);
 	printf("result: %f\n", result);
 
-	for (int i = 0; i < 1000; i++)
+	float f1 = 0;
+	float f2 = 0;
+	float error = 0;
+	for (int i = 0; i < 200; i++)
 	{
 		for (int j = 0; j < 4; j++)
 		{
-			float error = count_error(w, array[j][0], array[j][1]);
-			error_sum += error;
+			f1 = count_error(w, array[j][0], array[j][1]);
+			f2 = count_error(w + eps, array[j][0], array[j][1]);
+			error = (f2 - f1) / eps;
+			w -= learning_rate * error;
 		}
-
-		w = w + learning_rate * error_sum;
-		printf("error sum: %f\n", error_sum);
-		error_sum = 0;
 	}
 
-	result = get_forward(w, 20);
+	result = get_forward(w, array[0][0]);
 	printf("result: %f\n", result);
 
 	return 0;
