@@ -12,8 +12,10 @@ struct Mat
 };
 
 // Matrix initialization
-struct Mat *create_mat(int cols, int rows)
+struct Mat *create_mat(int rows, int cols)
 {
+    srand(time(NULL));
+
     struct Mat *mat = (struct Mat *)malloc(sizeof(struct Mat));
 
     mat->rows = rows;
@@ -106,20 +108,48 @@ void sub_mats(struct Mat *result_mat, struct Mat *mat_a, struct Mat *mat_b)
 void mul_mats(struct Mat *result_mat, struct Mat *mat_a, struct Mat *mat_b)
 {
     ASSERT_ERR(mat_a->cols == mat_b->rows, "Matrix dimensions do not match");
-    ASSERT_ERR(result_mat->cols == mat_b->cols && result_mat->rows == mat_a->rows, "Result matrix dimensions do not match");
+    ASSERT_ERR(result_mat->rows == mat_a->rows && result_mat->cols == mat_b->cols, "Result matrix dimensions do not match");
+
+    float sum = 0;
 
     for (int i = 0; i < mat_a->rows; i++)
     {
         for (int j = 0; j < mat_b->cols; j++)
         {
-            float sum = 0;
-            int mat_a_offset = j * mat_a->cols;
-            int mat_b_offset = i * mat_b->cols;
+            sum = 0;
             for (int k = 0; k < mat_a->cols; k++)
             {
-                sum += mat_a->data[mat_a_offset + k] * mat_b->data[mat_b_offset + k];
+                sum += mat_a->data[i * mat_a->cols + k] * mat_b->data[k * mat_b->cols + j];
             }
             result_mat->data[i * mat_b->cols + j] = sum;
+        }
+    }
+}
+
+// activations functions
+void mat_softmax(struct Mat *mat)
+{
+    for (int i = 0; i < mat->rows; i++)
+    {
+        float max_value = 0;
+        for (int j = 0; j < mat->cols; j++)
+        {
+            if (mat->data[i * mat->cols + j] > max_value)
+            {
+                max_value = mat->data[i * mat->cols + j];
+            }
+        }
+
+        float exp_sum = 0;
+        for (int j = 0; j < mat->cols; j++)
+        {
+            mat->data[i * mat->cols + j] = expf(mat->data[i * mat->cols + j] - max_value);
+            exp_sum += mat->data[i * mat->cols + j];
+        }
+
+        for (int j = 0; j < mat->cols; j++)
+        {
+            mat->data[i * mat->cols + j] /= exp_sum;
         }
     }
 }

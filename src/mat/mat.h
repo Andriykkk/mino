@@ -18,3 +18,6 @@ void free_mat(struct Mat *mat);
 void add_mats(struct Mat *result_mat, struct Mat *mat_a, struct Mat *mat_b);
 void sub_mats(struct Mat *result_mat, struct Mat *mat_a, struct Mat *mat_b);
 void mul_mats(struct Mat *result_mat, struct Mat *mat_a, struct Mat *mat_b);
+
+// Activation functions
+void mat_softmax(struct Mat *mat);
