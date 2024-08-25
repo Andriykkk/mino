@@ -8,7 +8,8 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall -Wextra")
 # Specify the source files
 set(SOURCES
     src/main.c
-    src/mat/mat.c   # Add mat.c to the source list
+    src/mat/mat.c
+    src/files/csv.c
 )
 
 # Add the executable
