@@ -3,8 +3,6 @@
 #include <time.h>
 #include "matrix/matrix_g.h"
 
-// TODO: add broadcasting as separate functions with broadcast, but this is later, right now usual multiplication, addition
-
 // Premature optimisations
 // TODO: remove allocation in transpose
 // TODO: write a function to generate function for mul, div, add, sub for matrices of different size
@@ -12,7 +10,7 @@
 // TODO: add pro mode that will remove types from matrices and you will should add types to functions mannualy
 // TODO: end library and start optimising matrices, use vectors, gpu, etc.
 
-void multiply_matrices_f32(Matrix_f32 *matrix_a, Matrix_f32 *matrix_b, Matrix_f32 *result_matrix)
+void multiply_matrices_2d_f32(Matrix_f32 *matrix_a, Matrix_f32 *matrix_b, Matrix_f32 *result_matrix)
 {
 	if (matrix_a->num_dims != matrix_b->num_dims || matrix_a->dims[0] != matrix_b->dims[1])
 	{
@@ -90,7 +88,7 @@ void transpose_matrix_f32(Matrix_f32 *matrix)
 	free(transposed_data);
 }
 
-void add_matrices_f32(Matrix_f32 *matrix_a, Matrix_f32 *matrix_b, Matrix_f32 *result_matrix)
+void add_matrices_2d_f32(Matrix_f32 *matrix_a, Matrix_f32 *matrix_b, Matrix_f32 *result_matrix)
 {
 	int rows = matrix_a->dims[0];
 	int cols = matrix_a->dims[1];
@@ -104,7 +102,7 @@ void add_matrices_f32(Matrix_f32 *matrix_a, Matrix_f32 *matrix_b, Matrix_f32 *re
 	}
 }
 
-void add_matrices_broadcast_f32(Matrix_f32 *matrix_a, Matrix_f32 *matrix_b, Matrix_f32 *result_matrix)
+void add_matrices_broadcast_2d_f32(Matrix_f32 *matrix_a, Matrix_f32 *matrix_b, Matrix_f32 *result_matrix)
 {
 	if (matrix_a->dims[0] % matrix_b->dims[0] != 0 || matrix_a->dims[1] % matrix_b->dims[1] != 0)
 	{
@@ -130,52 +128,48 @@ void add_matrices_broadcast_f32(Matrix_f32 *matrix_a, Matrix_f32 *matrix_b, Matr
 	}
 }
 
+typedef struct
+{
+	Matrix_f32 *weights;
+	Matrix_f32 *bias;
+} Linear_Layer_f32;
+
+void fill_random_matrix_f32(Matrix_f32 *matrix, int min, int max)
+{
+	for (int i = 0; i < matrix->total_elements; i++)
+	{
+		matrix->data[i] = (float)rand() / RAND_MAX * (max - min) + min;
+	}
+}
+
+Linear_Layer_f32 *init_linear_layer_f32(int input_size, int output_size)
+{
+	Linear_Layer_f32 *layer = (Linear_Layer_f32 *)malloc(sizeof(Linear_Layer_f32));
+	Matrix_f32 *weights = (Matrix_f32 *)create_matrix_f32((int[]){input_size, output_size}, 2, 0);
+	Matrix_f32 *bias = (Matrix_f32 *)create_matrix_f32((int[]){1, output_size}, 2, 0);
+	fill_random_matrix_f32(weights, -1, 1);
+	fill_random_matrix_f32(bias, -1, 1);
+	layer->weights = weights;
+	layer->bias = bias;
+
+	return layer;
+}
+
+void forward_linear_layer_f32(Linear_Layer_f32 *layer, Matrix_f32 *input, Matrix_f32 *output)
+{
+	multiply_matrices_2d_f32(input, layer->weights, output);
+	add_matrices_2d_f32(output, layer->bias, output);
+}
+
 int main()
 {
-	Matrix_f32 *m_inputs = (Matrix_f32 *)create_matrix_f32((int[]){3, 4}, 2, 0);
-	Matrix_f32 *m_weights = (Matrix_f32 *)create_matrix_f32((int[]){3, 4}, 2, 0);
-	Matrix_f32 *m_bias = (Matrix_f32 *)create_matrix_f32((int[]){1, 3}, 2, 0);
-	Matrix_f32 *m_result = (Matrix_f32 *)create_matrix_f32((int[]){3, 3}, 2, 0);
+	Linear_Layer_f32 *layer = init_linear_layer_f32(3, 4);
+	Matrix_f32 *input = (Matrix_f32 *)create_matrix_f32((int[]){4, 3}, 2, 2);
+	Matrix_f32 *input2 = (Matrix_f32 *)create_matrix_f32((int[]){3, 4}, 2, 2);
+	Matrix_f32 *output = (Matrix_f32 *)create_matrix_f32((int[]){4, 4}, 2, 0);
+	forward_linear_layer_f32(layer, input, output);
 
-	m_inputs->data = (float[]){1, 2, 3, 2.5, 2, 5, -1, 2, -1.5, 2.7, 3.3, -0.8};
-	m_weights->data = (float[]){0.2, 0.8, -0.5, 1.0, 0.5, -0.91, 0.26, -0.5, -0.26, -0.27, 0.17, 0.87};
-	m_bias->data = (float[]){2.0, 3.0, 0.5};
-	transpose_matrix_f32(m_weights);
-	print_matrix_f32(m_inputs);
-	printf("\n");
-	print_matrix_f32(m_weights);
-
-	multiply_matrices_f32(m_inputs, m_weights, m_result);
-	printf("\n");
-	print_matrix_f32(m_result);
-
-	add_matrices_broadcast_f32(m_result, m_bias, m_result);
-	printf("\n");
-	print_matrix_f32(m_result);
-
-	float inputs[4] = {1, 2, 3, 2.5};
-	float weights[3][4] = {
-		{0.2, 0.8, -0.5, 1.0},
-		{0.5, -0.91, 0.26, -0.5},
-		{-0.26, -0.27, 0.17, 0.87}};
-	float bias[3] = {2.0, 3.0, 0.5};
-
-	float output[3] = {0, 0, 0};
-
-	for (int i = 0; i < 3; i++)
-	{
-		for (int j = 0; j < 4; j++)
-		{
-			output[i] += weights[i][j] * inputs[j];
-		}
-
-		output[i] += bias[i];
-	}
-
-	for (int i = 0; i < 3; i++)
-	{
-		printf("%f\n", output[i]);
-	}
+	print_matrix_f32(output);
 
 	return 0;
 }
