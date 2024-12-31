@@ -48,57 +48,58 @@ void free_matrix___TYPEN__(Matrix___TYPEN__ *matrix)
     free(matrix);
 }
 
-int get_matrix_index___TYPEN__(int *indices, Matrix___TYPEN__ *matrix)
+int get_data_index___TYPEN__(Matrix___TYPEN__ *matrix, int *indices)
 {
     int index = 0;
     int stride = 1;
 
-    for (int i = matrix->num_dims; i >= 0; i--)
+    for (int i = matrix->num_dims - 1; i >= 0; i--)
     {
         index += indices[i] * stride;
         stride *= matrix->dims[i];
     }
+
+    return index;
 }
 
-__TYPE__ *get_matrix_element___TYPEN__(int *indices, Matrix___TYPEN__ *matrix)
+void print_matrix_recursive___TYPEN__(Matrix___TYPEN__ *matrix, int *indices, int dim)
 {
-    return matrix->data + get_matrix_index___TYPEN__(indices, matrix);
-}
-
-void print_matrix_recursive___TYPEN__(int depth, int *indices, Matrix___TYPEN__ *matrix)
-{
-    if (depth == matrix->num_dims)
+    if (dim == matrix->num_dims)
     {
-        printf("__TYPEP%f__", *get_matrix_element___TYPEN__(indices, matrix));
+        int idx = get_data_index___TYPEN__(matrix, indices);
+        printf("__TYPEP%f__ ", matrix->data[idx]);
+        return;
     }
-    else
+
+    if (dim)
     {
-        printf("\n");
-        for (int i = 0; i < depth; i++)
+        printf("(\n");
+    }
+
+    for (int i = 0; i < matrix->dims[dim]; i++)
+    {
+        indices[dim] = i;
+        for (int j = 0; j < dim; j++)
+            printf("  ");
+        print_matrix_recursive___TYPEN__(matrix, indices, dim + 1);
+
+        if (dim && i == matrix->dims[dim] - 1)
         {
-            printf("   ");
+            printf("\n");
         }
-        printf("(");
-        for (int i = 0; i < matrix->dims[depth]; i++)
-        {
-            indices[depth] = i;
-            print_matrix_recursive___TYPEN__(depth + 1, indices, matrix);
-            if (i < matrix->dims[depth] - 1)
-            {
-                printf("  ");
-            }
-        }
+    }
+
+    if (dim)
+    {
         printf(")\n");
     }
 }
 
 void print_matrix___TYPEN__(Matrix___TYPEN__ *matrix)
 {
-    int *indices = (int *)malloc(sizeof(int) * matrix->num_dims);
-
-    print_matrix_recursive___TYPEN__(0, indices, matrix);
-    printf("\n");
-
+    int *indices = (int *)malloc(matrix->num_dims * sizeof(int));
+    print_matrix_recursive___TYPEN__(matrix, indices, 0);
     free(indices);
 }
+
 //?>
