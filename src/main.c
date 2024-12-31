@@ -3,8 +3,7 @@
 #include <time.h>
 #include "matrix/matrix_g.h"
 
-// TODO: make generator for a callee function, they will be hardcoded, there will be separate file with functions for generating different operations, mul, add, etc, and also calle, they will append to matrix code
-// TODO: write a function to generate function for mul, div, add, sub for matrices of different size
+// TODO: write a function to generate function for mul, div, add, sub for matrices of different size, add broadcasting as separate functions with broadcast
 
 // Premature optimisations
 // TODO: add callee functions that will check type of matrix and call corresponding function
@@ -14,8 +13,7 @@
 
 int main()
 {
-	Matrix_f32 *matrix = create_matrix_f32((int[]){3, 3, 3}, 3, 2);
-	printf("%d\n", matrix->total_elements);
+	Matrix_f32 *matrix = (Matrix_f32 *)create_matrix_f32((int[]){3, 3, 3}, 3, 2);
 	print_matrix_f32(matrix);
 
 	float inputs[4] = {1, 2, 3, 2.5};

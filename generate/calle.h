@@ -1,1 +1,1 @@
-char *generate_calle(char *declaration, char *case_block);
+char *generate_calle(char last_char, char *declaration, char *switch_block, char *case_block);

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "matrix_g.h"
 #include "matrix.h"
 
 //<?

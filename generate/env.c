@@ -1,5 +1,8 @@
 #include "env.h"
 
+types active_types[] = {FLOAT_32, CHAR, SHORT, INT};
+const int active_types_size = sizeof(active_types) / sizeof(active_types[0]);
+
 char *type_to_string(types type, gen_type gen_type)
 {
     if (gen_type == GEN_TYPE_SHORT_NAME)

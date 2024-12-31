@@ -20,6 +20,7 @@ typedef enum
 } gen_type;
 
 extern types active_types[];
+extern const int active_types_size;
 char *type_to_string(types, gen_type);
 
 #endif

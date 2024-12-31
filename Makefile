@@ -11,7 +11,7 @@ $(EXEC): $(SOURCE)
 	$(CC) $(CFLAGS) -o $(EXEC) $(SOURCE)
 
 build_generator: generate/main.c
-	$(CC) $(CFLAGS) -o $(GENERATOR) generate/main.c generate/env.c generate/calle.c
+	$(CC) $(CFLAGS) -o $(GENERATOR) generate/main.c generate/env.c generate/calle.c generate/templater.c
 
 generate: $(GENERATOR)
 	./$(GENERATOR) src/matrix/matrix.h src/matrix/matrix_g.h

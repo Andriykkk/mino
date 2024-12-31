@@ -1,15 +1,5 @@
 #include "../defc/defc.h"
 
-typedef enum
-{
-    FLOAT_32,
-    DOUBLE,
-    CHAR,
-    SHORT,
-    INT,
-    LONG
-} types;
-
 //<?
 typedef struct
 {
