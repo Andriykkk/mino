@@ -3,6 +3,13 @@
 #include <time.h>
 #include "matrix/matrix_g.h"
 
+// TODO: return link to output from forward_linear_layer
+// TODO: make softmax layer, also dont forget about substracting max value from matrix
+// TODO: make so that you allocate very big matrix as output and after each forward it not allocated and just resizing, working as arena, but this is only for not learning, for learning there should be output matrix
+// TODO: add batches, simple batches that if one matrix have one additional dimension, then first dimension count as batch and just repeat loop as much as amount of matches
+// TODO: thinks about backpropagation (add backpropagation matrix to each matrix, add bool parameter if need back propagations to matrix or layer).
+// TODO: add tests for everything as i will try to optimise it
+
 // Premature optimisations
 // TODO: remove allocation in transpose
 // TODO: write a function to generate function for mul, div, add, sub for matrices of different size
@@ -159,6 +166,17 @@ void forward_linear_layer_f32(Linear_Layer_f32 *layer, Matrix_f32 *input, Matrix
 {
 	multiply_matrices_2d_f32(input, layer->weights, output);
 	add_matrices_2d_f32(output, layer->bias, output);
+}
+
+void relu_matrix_f32(Matrix_f32 *matrix)
+{
+	for (int i = 0; i < matrix->total_elements; i++)
+	{
+		if (matrix->data[i] < 0)
+		{
+			matrix->data[i] = 0;
+		}
+	}
 }
 
 int main()
