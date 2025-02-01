@@ -1,0 +1,5 @@
+[x] - read book futher
+[x] - add addition broadcast
+[ ] - make softmax
+[ ] - 
+[ ] - add tests for matmul with threshold

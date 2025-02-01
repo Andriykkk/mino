@@ -5,6 +5,7 @@
 
 // TODO: return link to output from forward_linear_layer
 // TODO: make softmax layer, also dont forget about substracting max value from matrix
+// TODO: make categorial cross entropy loss, also dont forget about 118 page in book to consider
 // TODO: make so that you allocate very big matrix as output and after each forward it not allocated and just resizing, working as arena, but this is only for not learning, for learning there should be output matrix
 // TODO: add batches, simple batches that if one matrix have one additional dimension, then first dimension count as batch and just repeat loop as much as amount of matches
 // TODO: thinks about backpropagation (add backpropagation matrix to each matrix, add bool parameter if need back propagations to matrix or layer).
