@@ -5,13 +5,11 @@ local activations = require('activations')
 
  
 
-local a = mino.Matrix({dims = {2, 3}, data = 2})
+local a = mino.Matrix({dims = {2, 3}, data = 0.1})
 local b = mino.Matrix({dims = {4, 2}, data = 2})
 
 local linear = mino.layers.Linear({dims = {3, 2}, data = 2})
 local d = linear(a)
-activations.RELU(d)
-mino.print_matrix(linear.weights)
-print("bias")
-mino.print_matrix(linear.bias)
-mino.print_matrix(d)
+a = activations.SOFTMAX(a)
+print("softmax")
+mino.print_matrix(a)
