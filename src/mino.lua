@@ -2,11 +2,15 @@ package.path = package.path .. ";./layers/?.lua;./matrix/?.lua;./activations/?.l
 local layers = require('layers')
 local matrix = require('matrix')
 local activations = require('activations')
+local utils = require('utils')
+local loss = require('loss')
 
 local mino = {}
 mino.layers = layers
 mino.matrix = matrix
 mino.activations = activations
+mino.utils = utils
+mino.loss = loss
 
 
 function copy_table_to_matrix(matrix, data)
