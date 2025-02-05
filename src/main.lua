@@ -4,7 +4,36 @@ local mino = require('mino')
 local activations = require('activations')
 
  
-local table = {1, 3, 2}
-a = mino.Matrix({dims = {3, 2}, data = 0.5})
-local b = mino.loss.cross_entropy(a, table)
+local a = mino.Matrix({dims = {2, 2}, data = 1})
+local b = mino.Matrix({dims = {1, 2}, data = 1})
+local d = mino.Matrix({dims = {2, 2}, data = 3})
+local respect = mino.Matrix({dims = {2, 2}, data = 4})
+local g = d + b
+local c = a * g
+
+c:backward(respect)
+
+print("a")
+mino.print_matrix(a)
+
+print("b")
 mino.print_matrix(b)
+
+print("c")
+mino.print_matrix(c)
+
+print("d")
+mino.print_matrix(d)
+
+print("g")
+mino.print_matrix(g)
+
+print("a grad")
+mino.print_matrix_grad(a)
+
+print("b grad")
+mino.print_matrix_grad(b)
+
+print("d grad")
+mino.print_matrix_grad(d)
+ 

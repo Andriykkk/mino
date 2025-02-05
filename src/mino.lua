@@ -38,10 +38,38 @@ function copy_table_to_matrix(matrix, data)
 end
 
 function mino.print_matrix(matrix)
+    if matrix == nil or matrix.data == nil then
+        print("Matrix is empty")
+        return
+    end
     for i = 1, matrix.dims[1] do
         io.write("{ ")
         for j = 1, matrix.dims[2] do
             io.write(matrix.data[(i - 1) * matrix.dims[2] + j])
+            if j ~= matrix.dims[2] then
+                io.write(", ")
+            end
+        end
+        io.write(" }")
+        if i ~= matrix.dims[1] then
+            io.write("\n")
+        end
+    end
+    io.write(", shape: { " .. matrix.dims[1] .. ", " .. matrix.dims[2] .. " }")
+    
+    io.write("\n")
+end
+
+function mino.print_matrix_grad(matrix)
+    if matrix.required_grad ~= true then
+        print("Matrix does not have a gradient")
+        return
+    end
+
+    for i = 1, matrix.dims[1] do
+        io.write("{ ")
+        for j = 1, matrix.dims[2] do
+            io.write(matrix.grad[(i - 1) * matrix.dims[2] + j])
             if j ~= matrix.dims[2] then
                 io.write(", ")
             end

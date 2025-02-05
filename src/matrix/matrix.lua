@@ -1,12 +1,31 @@
 package.path = package.path .. ";./error_handling/?.lua"
 local error_handling = require('error_handling')
+local addition_kernel = require('matrix/kernels/addition')
+local subtraction_kernel = require('matrix/kernels/subtraction')
+local multiplication_kernel = require('matrix/kernels/multiplication')
 local matrix = {}
+
+BIG = 1
+SMALL = 0
 
 function broadcast_values(self, other)
     if self.dims[1] == other.dims[1] and self.dims[2] == other.dims[2] then
         return {1, self.dims[1], 1, self.dims[2]}
     end
     shape = {}
+    shape[5] = 1
+
+    if self.dims[1] <= other.dims[1] and self.dims[2] <= other.dims[2] then
+        local temp = self
+        self = other
+        other = temp
+        shape[5] = 0
+    end
+
+    if other.dims[1] ~= 1 and other.dims[2] ~= 1 then
+        return false
+    end
+
     if self.dims[1] >= other.dims[1] and self.dims[1] % other.dims[1] == 0 then
         shape[1] = self.dims[1] / other.dims[1]
         shape[2] = other.dims[1]
@@ -21,7 +40,193 @@ function broadcast_values(self, other)
         return false
     end
 
+    if shape[5] == SMALL then
+        local temp = self
+        self = other
+        other = temp
+    end
+
     return shape
+end
+
+function add_backward(self, respect)
+    local operand1 = self.operand1
+    local operand2 = self.operand2
+
+    if operand1.required_grad == true then
+        shape = broadcast_values(operand1, respect)
+        if shape[5] == BIG then
+            addition_kernel.run_big_back(operand1.grad, respect.data, operand1.dims[2], respect.dims[2], shape[1], shape[2], shape[3], shape[4])
+        else
+            addition_kernel.run_small_back(respect.data, operand1.grad, respect.dims[2], operand1.dims[2], shape[1], shape[2], shape[3], shape[4])
+        end
+    end
+
+    if operand1.backward then
+        operand1:backward(respect)
+    end
+
+    if operand2.required_grad == true then
+        shape = broadcast_values(operand2, respect)
+        if shape[5] == BIG then
+            addition_kernel.run_big_back(operand2.grad, respect.data, operand2.dims[2], respect.dims[2], shape[1], shape[2], shape[3], shape[4])
+        else
+            addition_kernel.run_small_back(respect.data, operand2.grad, respect.dims[2], operand2.dims[2], shape[1], shape[2], shape[3], shape[4])
+        end
+    end
+
+    if operand2.backward then
+        operand2:backward(respect)
+    end
+end
+
+function subtract_backward(self, respect)
+    local operand1 = self.operand1
+    local operand2 = self.operand2
+
+    if operand1.required_grad == true then
+        shape = broadcast_values(operand1, respect)
+        if shape[5] == BIG then
+            addition_kernel.run_big_back(operand1.grad, respect.data, operand1.dims[2], respect.dims[2], shape[1], shape[2], shape[3], shape[4])
+        else
+            addition_kernel.run_small_back(respect.data, operand1.grad, respect.dims[2], operand1.dims[2], shape[1], shape[2], shape[3], shape[4])
+        end
+    end
+
+    if operand1.backward then
+        operand1:backward(respect)
+    end
+
+    for i = 1, self.dims[1] * self.dims[2] do
+        respect[i] = -respect[i]
+    end
+
+    if operand2.required_grad == true then
+        shape = broadcast_values(operand2, respect)
+        if shape[5] == BIG then
+            addition_kernel.run_big_back(operand2.grad, respect.data, operand2.dims[2], respect.dims[2], shape[1], shape[2], shape[3], shape[4])
+        else
+            addition_kernel.run_small_back(respect.data, operand2.grad, respect.dims[2], operand2.dims[2], shape[1], shape[2], shape[3], shape[4])
+        end
+    end
+
+    if operand2.backward then
+        operand2:backward(respect)
+    end
+end
+
+function mul_backward(self, respect)
+    local operand1 = self.operand1
+    local operand2 = self.operand2
+
+    if type(operand2) == "number" then
+        for i = 1, self.dims[1] * self.dims[2] do
+            respect[i] = respect[i] * operand2
+        end
+
+        if operand1.backward then
+            operand1:backward(respect)
+        end
+        return
+    end
+
+    -- 1. to operand 1 add respect multiplied by operand 2
+    -- 2. to operand 2 add respect multiplied by operand 1
+
+    if operand1.required_grad == true then
+        shape = broadcast_values(operand2, respect)
+        local result = {}
+        for i = 1, operand2.dims[1] * operand2.dims[2] do
+            result[i] = 0
+        end
+        if shape[5] == BIG then
+            multiplication_kernel.run_big(operand2.data, respect.data, result, operand2.dims[2], respect.dims[2], shape[1], shape[2], shape[3], shape[4])
+        else
+            multiplication_kernel.run_small(respect.data, operand2.data, result, respect.dims[2], operand2.dims[2], shape[1], shape[2], shape[3], shape[4])
+        end
+
+        shape = broadcast_values(operand1, operand2)
+        if shape[5] == BIG then
+            addition_kernel.run_big_back(operand1.grad, result, operand1.dims[2], operand2.dims[2], shape[1], shape[2], shape[3], shape[4])
+        else
+            addition_kernel.run_small_back(result, operand1.grad, operand2.dims[2], operand1.dims[2], shape[1], shape[2], shape[3], shape[4])
+        end
+    end
+
+    if operand1.backward then
+        operand1:backward(respect)
+    end
+
+    if operand2.required_grad == true then
+        shape = broadcast_values(operand1, respect)
+        local result = {}
+        for i = 1, operand1.dims[1] * operand1.dims[2] do
+            result[i] = 0
+        end
+        if shape[5] == BIG then
+            multiplication_kernel.run_big(operand1.data, respect.data, result, operand1.dims[2], respect.dims[2], shape[1], shape[2], shape[3], shape[4])
+        else
+            multiplication_kernel.run_small(respect.data, operand1.data, result, respect.dims[2], operand1.dims[2], shape[1], shape[2], shape[3], shape[4])
+        end
+
+        shape = broadcast_values(operand2, operand1)
+        if shape[5] == BIG then
+            addition_kernel.run_big_back(operand2.grad, result, operand2.dims[2], operand1.dims[2], shape[1], shape[2], shape[3], shape[4])
+        else
+            addition_kernel.run_small_back(result, operand2.grad, operand1.dims[2], operand2.dims[2], shape[1], shape[2], shape[3], shape[4])
+        end
+    end
+
+    if operand2.backward then
+        operand2:backward(respect)
+    end
+
+    -- if operand1.required_grad == true then
+    --     shape = broadcast_values(operand1, respect)
+    --     if shape[5] == BIG then
+    --         multiplication_kernel.run_big_back(operand1.grad, respect.data, operand1.dims[2], respect.dims[2], shape[1], shape[2], shape[3], shape[4])
+    --     else
+    --         local result = {}
+    --         for i = 1, operand1.dims[1] * operand1.dims[2] do
+    --             result[i] = 0
+    --         end
+    --         multiplication_kernel.run_small(respect.data, operand1.grad, result, respect.dims[2], operand1.dims[2], shape[1], shape[2], shape[3], shape[4])
+
+    --         for i = 1, operand1.dims[1] * operand1.dims[2] do
+    --             operand1.grad[i] = operand1.grad[i] + result[i]
+    --         end
+    --     end
+    -- end
+
+    -- if operand1.backward then
+    --     operand1:backward(respect)
+    -- end
+
+    -- for i = 1, self.dims[1] * self.dims[2] do
+    --     respect[i] = -respect[i]
+    -- end
+
+    -- if operand2.required_grad == true then
+    --     shape = broadcast_values(operand2, respect)
+    --     if shape[5] == BIG then
+    --         addition_kernel.run_big_back(operand2.grad, respect.data, operand2.dims[2], respect.dims[2], shape[1], shape[2], shape[3], shape[4])
+    --     else
+    --         local result = {}
+    --         for i = 1, operand2.dims[1] * operand2.dims[2] do
+    --             result[i] = 0
+    --         end
+    --         multiplication_kernel.run_small(respect.data, operand2.grad, result, respect.dims[2], operand2.dims[2], shape[1], shape[2], shape[3], shape[4])
+    --         for i = 1, operand2.dims[1] * operand2.dims[2] do
+    --             operand2.grad[i] = operand2.grad[i] + result[i]
+    --         end
+    --     end
+    -- end
+
+    -- if operand2.backward then
+    --     operand2:backward(respect)
+    -- end
+
+
 end
 
 local matrix_mt = {
@@ -42,7 +247,7 @@ local matrix_mt = {
         elseif key == "shape" then
             return self.dims
         else 
-            return nil
+            return rawget(self, key)
         end
     end,
     
@@ -51,7 +256,7 @@ local matrix_mt = {
         if type(key) == "number" and key <= self.dims[1] * self.dims[2] and type(value) == "number" then
             self.data[key] = value
         else
-            error_handling.show_error("Invalid key or value for matrix.")
+            rawset(self, key, value)
         end
     end,
     
@@ -76,20 +281,19 @@ local matrix_mt = {
         if shape == false then
             error_handling.show_error("Matrices dimensions are not compatible for addition.")
         end
+        
+        if shape[5] == SMALL then
+            local temp = self
+            self = other
+            other = temp
+        end
 
         local result = matrix.new({dims = {self.dims[1], self.dims[2]}})
-        for i = 1, shape[1] do
-            for ii = 1, shape[2] do
-                for j = 1, shape[3] do
-                    for jj = 1, shape[4] do
-                        local row = (i - 1) * shape[2] + ii
-                        local col = (j - 1) * shape[4] + jj
+        result.backward = add_backward
+        result.operand1 = self
+        result.operand2 = other
 
-                        result[(row - 1) * self.dims[2] + col] = self[(row - 1) * self.dims[2] + col] + other.data[(ii - 1) * other.dims[2] + jj]
-                    end
-                end
-            end
-        end
+        addition_kernel.run_big(self.data, other.data, result.data, self.dims[2], other.dims[2], shape[1], shape[2], shape[3], shape[4])
         return result
     end,
 
@@ -110,23 +314,42 @@ local matrix_mt = {
             return result
         end
 
-        if self.dims[1] ~= other.dims[1] or self.dims[2] ~= other.dims[2] then
-            error_handling.show_error("Matrices are not compatible for subtraction.")
+        shape = broadcast_values(self, other)
+        if shape == false then
+            error_handling.show_error("Matrices dimensions are not compatible for subtraction.")
         end
-
+        
+        if shape[5] == SMALL then
+            local temp = self
+            self = other
+            other = temp
+        end
+        
         local result = matrix.new({dims = {self.dims[1], self.dims[2]}})
-        for i = 1, self.dims[1] * self.dims[2] do
-            result.data[i] = self.data[i] - other.data[i]
+        result.backward = subtract_backward
+        result.operand1 = self
+        result.operand2 = other
+
+        if shape[5] == SMALL then
+            result.operand1 = other
+            result.operand2 = self
+
         end
+        subtraction_kernel.run_big(self.data, other.data, result.data, self.dims[2], other.dims[2], shape[1], shape[2], shape[3], shape[4])
         return result
     end,
 
     __mul = function(self, other)
+        -- add backward for simple multiplication
         if type(other) == "number" then
             local result = matrix.new({dims = {self.dims[1], self.dims[2]}})
             for i = 1, self.dims[1] * self.dims[2] do
                 result.data[i] = self.data[i] * other
             end
+            print("mul number", self, other)
+            result.backward = mul_backward
+            result.operand1 = self
+            result.operand2 = other
             return result
         end
         
@@ -135,6 +358,9 @@ local matrix_mt = {
             for i = 1, other.dims[1] * other.dims[2] do
                 result.data[i] = other.data[i] * self
             end
+            result.backward = mul_backward
+            result.operand1 = other
+            result.operand2 = self
             return result
         end
 
@@ -142,31 +368,47 @@ local matrix_mt = {
             error_handling.show_error("Matrices are not compatible for multiplication.")
         end
 
-        local result = matrix.new({dims = {self.dims[1], self.dims[2]}})
-        for i = 1, self.dims[1] * self.dims[2] do
-            result.data[i] = self.data[i] * other.data[i]
+        shape = broadcast_values(self, other)
+        if shape == false then
+            error_handling.show_error("Matrices dimensions are not compatible for addition.")
         end
-        return result
-    end
+        
+        if shape[5] == SMALL then
+            local temp = self
+            self = other
+            other = temp
+        end
 
+        local result = matrix.new({dims = {self.dims[1], self.dims[2]}})
+        result.backward = mul_backward
+        result.operand1 = self
+        result.operand2 = other
+        multiplication_kernel.run_big(self.data, other.data, result.data, self.dims[2], other.dims[2], shape[1], shape[2], shape[3], shape[4])
+        return result
+    end 
 }
 
-function matrix.new(params)
-    local matrix = {}
-    matrix.dims = {0, 0}
-    matrix.data = {}
 
-    setmetatable(matrix, matrix_mt)
+function matrix.new(params)
+    local mat = {}
+    mat.dims = {0, 0}
+    mat.data = {}
+    mat.grad = {}
+    mat.required_grad = true
+    mat.copy = matrix.copy
+
+    setmetatable(mat, matrix_mt)
 
     local fill_value = 0
 
+    -- dimensions and data
     if params.dims == nil and params.data == nil then
         error_handling.show_error("Invalid params for matrix.")
     end
 
     if params.dims ~= nil then
-        matrix.dims[1] = params.dims[1]
-        matrix.dims[2] = params.dims[2]
+        mat.dims[1] = params.dims[1]
+        mat.dims[2] = params.dims[2]
     end 
 
     if type(params.data) == "table" then
@@ -174,27 +416,57 @@ function matrix.new(params)
         and (params.dims[1] == #params.data and params.dims[2] == #params.data[1])
         or (params.dims[1] * params.dims[2] == #params.data)
         then
-            copy_table_to_matrix(matrix, params.data)
-            return matrix
+            copy_table_to_matrix(mat, params.data)
         else
             error_handling.show_error("Invalid data for matrix, dimensions do not match.")
         end         
+    else
+        -- fill matrix
+        if type(params.data) == "number" then
+            fill_value = params.data
+        end
+
+        if type(params.data) == "function" then
+            -- TODO add generation of matrix numbers from function
+        end
+
+        for i = 1, mat.dims[1] * mat.dims[2] do
+            mat.data[i] = fill_value
+        end
     end
 
-    if type(params.data) == "number" then
-        fill_value = params.data
+    -- required_grad
+    if params.required_grad == false then
+        mat.required_grad = false
     end
 
-    if type(params.data) == "function" then
-        -- TODO add generation of matrix numbers from function
+    if mat.required_grad == true then
+        for i = 1, mat.dims[1] * mat.dims[2] do
+            mat.grad[i] = 0
+        end
     end
 
-    for i = 1, matrix.dims[1] * matrix.dims[2] do
-        matrix.data[i] = fill_value
-    end
-
-    return matrix
+    return mat
 end 
+
+function matrix:copy(params)
+    if params == nil then
+        params = {}
+    end
+    local copy = matrix.new({dims = {self.dims[1], self.dims[2]}, data = self.data, required_grad = self.required_grad})
+
+    for i = 1, self.dims[1] * self.dims[2] do
+        copy.data[i] = self.data[i]
+    end
+
+    if params.copy_grad == true then
+        for i = 1, self.dims[1] * self.dims[2] do
+            copy.grad[i] = self.grad[i]
+        end
+    end
+
+    return copy
+end
 
 function matmul_naive(self, other)
     if self.dims[2] ~= other.dims[1] then
