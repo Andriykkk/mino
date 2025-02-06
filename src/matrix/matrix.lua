@@ -3,6 +3,7 @@ local error_handling = require('error_handling')
 local addition_kernel = require('matrix/kernels/addition')
 local subtraction_kernel = require('matrix/kernels/subtraction')
 local multiplication_kernel = require('matrix/kernels/multiplication')
+local matmul_kernel = require('matrix/kernels/matmul')
 local matrix = {}
 
 BIG = 1
@@ -130,9 +131,6 @@ function mul_backward(self, respect)
         return
     end
 
-    -- 1. to operand 1 add respect multiplied by operand 2
-    -- 2. to operand 2 add respect multiplied by operand 1
-
     if operand1.required_grad == true then
         shape = broadcast_values(operand2, respect)
         local result = {}
@@ -181,52 +179,54 @@ function mul_backward(self, respect)
         operand2:backward(respect)
     end
 
-    -- if operand1.required_grad == true then
-    --     shape = broadcast_values(operand1, respect)
-    --     if shape[5] == BIG then
-    --         multiplication_kernel.run_big_back(operand1.grad, respect.data, operand1.dims[2], respect.dims[2], shape[1], shape[2], shape[3], shape[4])
-    --     else
-    --         local result = {}
-    --         for i = 1, operand1.dims[1] * operand1.dims[2] do
-    --             result[i] = 0
-    --         end
-    --         multiplication_kernel.run_small(respect.data, operand1.grad, result, respect.dims[2], operand1.dims[2], shape[1], shape[2], shape[3], shape[4])
+end
 
-    --         for i = 1, operand1.dims[1] * operand1.dims[2] do
-    --             operand1.grad[i] = operand1.grad[i] + result[i]
-    --         end
-    --     end
-    -- end
+function matmul_backward(self, respect)
+    local operand1 = self.operand1
+    local operand2 = self.operand2
+    -- 1. multiply transpose of operand1 by respect
+    -- 2. multiply respect by transpose of operand2
+    -- 3. add result to operand1.grad
+    -- 4. add result to operand2.grad
 
-    -- if operand1.backward then
-    --     operand1:backward(respect)
-    -- end
+    local result
+    if operand1.required_grad == true then
+        local operand_t = matrix.new({dims = {operand2.dims[2], operand2.dims[1]}})
+        for i = 1, self.dims[1] do
+            for j = 1, self.dims[2] do
+                operand_t.data[(j - 1) * operand2.dims[1] + i] = operand2.data[(i - 1) * operand2.dims[2] + j]
+            end
+        end
+        result = matrix.new({dims = {operand_t.dims[1], respect.dims[2]}})
+        matmul_kernel.matmul_naive(respect, operand_t, result)
 
-    -- for i = 1, self.dims[1] * self.dims[2] do
-    --     respect[i] = -respect[i]
-    -- end
+        for i = 1, result.dims[1] * result.dims[2] do
+            operand1.grad[i] = operand1.grad[i] + result.data[i]
+        end
+    end
 
-    -- if operand2.required_grad == true then
-    --     shape = broadcast_values(operand2, respect)
-    --     if shape[5] == BIG then
-    --         addition_kernel.run_big_back(operand2.grad, respect.data, operand2.dims[2], respect.dims[2], shape[1], shape[2], shape[3], shape[4])
-    --     else
-    --         local result = {}
-    --         for i = 1, operand2.dims[1] * operand2.dims[2] do
-    --             result[i] = 0
-    --         end
-    --         multiplication_kernel.run_small(respect.data, operand2.grad, result, respect.dims[2], operand2.dims[2], shape[1], shape[2], shape[3], shape[4])
-    --         for i = 1, operand2.dims[1] * operand2.dims[2] do
-    --             operand2.grad[i] = operand2.grad[i] + result[i]
-    --         end
-    --     end
-    -- end
+    if operand1.backward then
+        operand1:backward(result)
+    end
 
-    -- if operand2.backward then
-    --     operand2:backward(respect)
-    -- end
+    if operand2.required_grad == true then
+        local operand_t = matrix.new({dims = {operand1.dims[2], operand1.dims[1]}})
+        for i = 1, self.dims[1] do
+            for j = 1, self.dims[2] do
+                operand_t.data[(j - 1) * operand1.dims[1] + i] = operand1.data[(i - 1) * operand1.dims[2] + j]
+            end
+        end
+        result = matrix.new({dims = {operand_t.dims[1], respect.dims[2]}})
+        matmul_kernel.matmul_naive(operand_t, respect, result)
 
+        for i = 1, result.dims[1] * result.dims[2] do
+            operand2.grad[i] = operand2.grad[i] + result.data[i]
+        end
+    end
 
+    if operand2.backward then
+        operand2:backward(result)
+    end
 end
 
 local matrix_mt = {
@@ -346,7 +346,6 @@ local matrix_mt = {
             for i = 1, self.dims[1] * self.dims[2] do
                 result.data[i] = self.data[i] * other
             end
-            print("mul number", self, other)
             result.backward = mul_backward
             result.operand1 = self
             result.operand2 = other
@@ -362,10 +361,6 @@ local matrix_mt = {
             result.operand1 = other
             result.operand2 = self
             return result
-        end
-
-        if self.dims[1] ~= other.dims[1] or self.dims[2] ~= other.dims[2] then
-            error_handling.show_error("Matrices are not compatible for multiplication.")
         end
 
         shape = broadcast_values(self, other)
@@ -468,27 +463,20 @@ function matrix:copy(params)
     return copy
 end
 
-function matmul_naive(self, other)
+function matrix.matmul(self, other)
     if self.dims[2] ~= other.dims[1] then
         error_handling.show_error("Matrices are not compatible for multiplication.")
     end
 
     local result = matrix.new({dims = {self.dims[1], other.dims[2]}})
 
-    for i = 1, self.dims[1] do
-        for j = 1, other.dims[2] do
-            local sum = 0
-            for k = 1, self.dims[2] do
-                sum = sum + self.data[(i - 1) * self.dims[2] + k] * other.data[(k - 1) * other.dims[2] + j]
-            end
-            result.data[(i - 1) * other.dims[2] + j] = sum
-        end
-    end
+    result.backward = matmul_backward
+    result.operand1 = self
+    result.operand2 = other
+
+    matmul_kernel.matmul_naive(self, other, result)
 
     return result
 end
-
-matrix.matmul_naive = matmul_naive
-matrix.matmul = matmul_naive
 
 return matrix

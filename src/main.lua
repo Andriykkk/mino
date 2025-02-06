@@ -5,11 +5,12 @@ local activations = require('activations')
 
  
 local a = mino.Matrix({dims = {2, 2}, data = 1})
-local b = mino.Matrix({dims = {1, 2}, data = 1})
+local b = mino.Matrix({dims = {2, 2}, data = 2})
 local d = mino.Matrix({dims = {2, 2}, data = 3})
 local respect = mino.Matrix({dims = {2, 2}, data = 4})
-local g = d + b
-local c = a * g
+local h = d - b
+local g = d + h
+local c = mino.matmul(a, g)
 
 c:backward(respect)
 

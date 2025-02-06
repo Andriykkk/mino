@@ -3,6 +3,7 @@ local layers = require('layers')
 local matrix = require('matrix')
 local activations = require('activations')
 local utils = require('utils')
+local error_handling = require('error_handling')
 local loss = require('loss')
 
 local mino = {}
@@ -96,7 +97,7 @@ function mino.Matrix(params)
     return matrix.new(params, mino)
 end
 function mino.matmul(self, other)
-    return matrix.matmul(self, other)
+    return matrix.matmul(self, other, result)
 end
 
 
