@@ -184,10 +184,6 @@ end
 function matmul_backward(self, respect)
     local operand1 = self.operand1
     local operand2 = self.operand2
-    -- 1. multiply transpose of operand1 by respect
-    -- 2. multiply respect by transpose of operand2
-    -- 3. add result to operand1.grad
-    -- 4. add result to operand2.grad
 
     local result
     if operand1.required_grad == true then
