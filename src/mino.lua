@@ -17,10 +17,6 @@ mino.loss = loss
 function copy_table_to_matrix(matrix, data)
     for i = 1, #data do
         if type(data[i]) == "table" then
-            if matrix.dims[2] <= #data[i] then
-                print("Invalid data for matrix, dimensions do not match")
-                os.exit(1)
-            end
             for j = 1, #data[i] do
                 if type(data[i][j]) ~= "number" then
                     print("Invalid data for matrix, data is not a number")

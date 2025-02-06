@@ -181,6 +181,16 @@ function mul_backward(self, respect)
 
 end
 
+function unm_backward(self, respect)
+    for i = 1, respect.dims[1] * respect.dims[2] do
+        respect[i] = -respect[i]
+    end
+
+    if self.operand1.backward then
+        self.operand1:backward(respect)
+    end
+end
+
 function matmul_backward(self, respect)
     local operand1 = self.operand1
     local operand2 = self.operand2
@@ -294,6 +304,7 @@ local matrix_mt = {
     end,
 
     __sub = function(self, other)
+        print("some")
         if type(other) == "number" then
             local result = matrix.new({dims = {self.dims[1], self.dims[2]}})
             for i = 1, self.dims[1] * self.dims[2] do
@@ -332,6 +343,17 @@ local matrix_mt = {
 
         end
         subtraction_kernel.run_big(self.data, other.data, result.data, self.dims[2], other.dims[2], shape[1], shape[2], shape[3], shape[4])
+        return result
+    end,
+
+    __unm = function(self)
+        local result = matrix.new({dims = {self.dims[1], self.dims[2]}})
+        for i = 1, self.dims[1] * self.dims[2] do
+            result.data[i] = -self.data[i]
+        end
+
+        result.backward = unm_backward
+        result.operand1 = self
         return result
     end,
 
@@ -405,8 +427,16 @@ function matrix.new(params)
     if type(params.data) == "table" then
         if params.dims ~= nil 
         and (params.dims[1] == #params.data and params.dims[2] == #params.data[1])
-        or (params.dims[1] * params.dims[2] == #params.data)
         then
+            copy_table_to_matrix(mat, params.data)
+        elseif params.dims == nil then
+            mat.dims[1] = #params.data
+            if type(params.data[1]) == "table" then
+                mat.dims[2] = #params.data[1]
+            else
+                mat.dims[2] = mat.dims[1]
+                mat.dims[1] = 1
+            end
             copy_table_to_matrix(mat, params.data)
         else
             error_handling.show_error("Invalid data for matrix, dimensions do not match.")
