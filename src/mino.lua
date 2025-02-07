@@ -42,7 +42,7 @@ function mino.print_matrix(matrix)
     for i = 1, matrix.dims[1] do
         io.write("{ ")
         for j = 1, matrix.dims[2] do
-            io.write(matrix.data[(i - 1) * matrix.dims[2] + j])
+            io.write(string.format("%.4f", matrix.data[(i - 1) * matrix.dims[2] + j]))
             if j ~= matrix.dims[2] then
                 io.write(", ")
             end
@@ -66,7 +66,7 @@ function mino.print_matrix_grad(matrix)
     for i = 1, matrix.dims[1] do
         io.write("{ ")
         for j = 1, matrix.dims[2] do
-            io.write(matrix.grad[(i - 1) * matrix.dims[2] + j])
+            io.write(string.format("%.4f", matrix.grad[(i - 1) * matrix.dims[2] + j]))
             if j ~= matrix.dims[2] then
                 io.write(", ")
             end
@@ -79,6 +79,15 @@ function mino.print_matrix_grad(matrix)
     io.write(", shape: { " .. matrix.dims[1] .. ", " .. matrix.dims[2] .. " }")
     
     io.write("\n")
+end
+
+-- operations
+function mino.log(x)
+    return matrix.log(x)
+end
+
+function mino.sum(x)
+    return matrix.sum(x)
 end
 
 

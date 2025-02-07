@@ -131,52 +131,50 @@ function mul_backward(self, respect)
         return
     end
 
+    -- operand1
+    local result = matrix.new({dims = {operand2.dims[1], operand2.dims[2]}})
+    shape = broadcast_values(operand2, respect)
+    
+    if shape[5] == BIG then
+        multiplication_kernel.run_big(operand2.data, respect.data, result.data, operand2.dims[2], respect.dims[2], shape[1], shape[2], shape[3], shape[4])
+    else
+        multiplication_kernel.run_small(respect.data, operand2.data, result.data, respect.dims[2], operand2.dims[2], shape[1], shape[2], shape[3], shape[4])
+    end
+    
     if operand1.required_grad == true then
-        shape = broadcast_values(operand2, respect)
-        local result = {}
-        for i = 1, operand2.dims[1] * operand2.dims[2] do
-            result[i] = 0
-        end
-        if shape[5] == BIG then
-            multiplication_kernel.run_big(operand2.data, respect.data, result, operand2.dims[2], respect.dims[2], shape[1], shape[2], shape[3], shape[4])
-        else
-            multiplication_kernel.run_small(respect.data, operand2.data, result, respect.dims[2], operand2.dims[2], shape[1], shape[2], shape[3], shape[4])
-        end
-
         shape = broadcast_values(operand1, operand2)
         if shape[5] == BIG then
-            addition_kernel.run_big_back(operand1.grad, result, operand1.dims[2], operand2.dims[2], shape[1], shape[2], shape[3], shape[4])
+            addition_kernel.run_big_back(operand1.grad, result.data, operand1.dims[2], operand2.dims[2], shape[1], shape[2], shape[3], shape[4])
         else
-            addition_kernel.run_small_back(result, operand1.grad, operand2.dims[2], operand1.dims[2], shape[1], shape[2], shape[3], shape[4])
+            addition_kernel.run_small_back(result.data, operand1.grad, operand2.dims[2], operand1.dims[2], shape[1], shape[2], shape[3], shape[4])
         end
     end
 
     if operand1.backward then
-        operand1:backward(respect)
+        operand1:backward(result)
     end
 
-    if operand2.required_grad == true then
-        shape = broadcast_values(operand1, respect)
-        local result = {}
-        for i = 1, operand1.dims[1] * operand1.dims[2] do
-            result[i] = 0
-        end
-        if shape[5] == BIG then
-            multiplication_kernel.run_big(operand1.data, respect.data, result, operand1.dims[2], respect.dims[2], shape[1], shape[2], shape[3], shape[4])
-        else
-            multiplication_kernel.run_small(respect.data, operand1.data, result, respect.dims[2], operand1.dims[2], shape[1], shape[2], shape[3], shape[4])
-        end
+    -- operand2
+    shape = broadcast_values(operand1, respect)
+    result = matrix.new({dims = {operand1.dims[1], operand1.dims[2]}})
 
+    if shape[5] == BIG then
+        multiplication_kernel.run_big(operand1.data, respect.data, result.data, operand1.dims[2], respect.dims[2], shape[1], shape[2], shape[3], shape[4])
+    else
+        multiplication_kernel.run_small(respect.data, operand1.data, result.data, respect.dims[2], operand1.dims[2], shape[1], shape[2], shape[3], shape[4])
+    end
+    
+    if operand2.required_grad == true then
         shape = broadcast_values(operand2, operand1)
         if shape[5] == BIG then
-            addition_kernel.run_big_back(operand2.grad, result, operand2.dims[2], operand1.dims[2], shape[1], shape[2], shape[3], shape[4])
+            addition_kernel.run_big_back(operand2.grad, result.data, operand2.dims[2], operand1.dims[2], shape[1], shape[2], shape[3], shape[4])
         else
-            addition_kernel.run_small_back(result, operand2.grad, operand1.dims[2], operand2.dims[2], shape[1], shape[2], shape[3], shape[4])
+            addition_kernel.run_small_back(result.data, operand2.grad, operand1.dims[2], operand2.dims[2], shape[1], shape[2], shape[3], shape[4])
         end
     end
 
     if operand2.backward then
-        operand2:backward(respect)
+        operand2:backward(result)
     end
 
 end
@@ -401,6 +399,55 @@ local matrix_mt = {
     end 
 }
 
+-- operations
+function log_backward(self, respect)
+    local operand1 = self.operand1
+    local result = matrix.new({dims = {operand1.dims[1], operand1.dims[2]}})
+    for i = 1, operand1.dims[1] * operand1.dims[2] do
+        result.data[i] = respect.data[i] / operand1.data[i]
+    end
+    if operand1.required_grad == true then
+        for i = 1, operand1.dims[1] * operand1.dims[2] do
+            operand1.grad[i] = operand1.grad[i] + result.data[i]
+        end
+    end
+    if operand1.backward then
+        operand1:backward(result)
+    end
+end
+function matrix.log(self)
+    local result = matrix.new({dims = {self.dims[1], self.dims[2]}})
+    for i = 1, self.dims[1] * self.dims[2] do
+        result.data[i] = math.log(self.data[i])
+    end
+    result.operand1 = self
+    result.backward = log_backward
+    return result
+end
+
+function sum_backward(self)
+    local operand1 = self.operand1
+    local respect = matrix.new({dims = {operand1.dims[1], operand1.dims[2]}, data=1})
+
+    if operand1.required_grad == true then
+        for i = 1, operand1.dims[1] * operand1.dims[2] do
+            operand1.grad[i] = operand1.grad[i] + respect.data[1]
+        end
+    end
+
+    if operand1.backward then
+        operand1:backward(respect)
+    end
+end
+function matrix.sum(self)
+    local result = matrix.new({dims = {1, 1}})
+    for i = 1, self.dims[1] * self.dims[2] do
+        result.data[1] = result.data[1] + self.data[i]
+    end
+    result.operand1 = self
+    result.backward = sum_backward
+    return result
+end
 
 function matrix.new(params)
     local mat = {}
@@ -408,6 +455,7 @@ function matrix.new(params)
     mat.data = {}
     mat.grad = {}
     mat.required_grad = true
+
     mat.copy = matrix.copy
 
     setmetatable(mat, matrix_mt)
@@ -466,6 +514,7 @@ function matrix.new(params)
             mat.grad[i] = 0
         end
     end
+    
 
     return mat
 end 

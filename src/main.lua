@@ -3,22 +3,35 @@ local error_handling = require('error_handling')
 local mino = require('mino')
 local activations = require('activations')
 
-a = mino.Matrix({dims = {2, 2}, data = 1})
-b = mino.Matrix({dims = {2, 2}, data = 1})
+ 
+local a = mino.Matrix({dims = {2, 2}, data = 2})
+local b = mino.Matrix({dims = {1, 2}, data = 1})
+local d = mino.Matrix({dims = {2, 2}, data = 1})
 
-g = a + b
-c = -g
+g = d + b
+c = a + g
 
-local respect = mino.Matrix({dims = {2, 2}, data = 4})
-c:backward(respect)
+target = mino.Matrix({data = {{1}, {0}}})
+-- loss = mino.loss.cross_entropy(c, target)
+-- loss:backward()
+
+mino.print_matrix(c)
+mino.print_matrix(target)
+
+print("a")
+mino.print_matrix(a)
+print("b")
+mino.print_matrix(b)
+print("d")
+mino.print_matrix(d)
+print("loss")
+mino.print_matrix(loss)
 
 print("a")
 mino.print_matrix_grad(a)
 print("b")
 mino.print_matrix_grad(b)
- 
--- local a = mino.Matrix({ data = {1, 2, 3}})
--- local output = mino.activations.softmax(a)
--- local target = mino.Matrix({ data = {1, 0, 0}})
--- target = -target
--- mino.print_matrix(output)
+print("d")
+mino.print_matrix_grad(d)
+print("loss")
+mino.print_matrix_grad(loss)
