@@ -11,9 +11,10 @@ local d = mino.Matrix({dims = {2, 2}, data = 1})
 g = d + b
 c = a + g
 
-target = mino.Matrix({data = {{1}, {0}}})
--- loss = mino.loss.cross_entropy(c, target)
--- loss:backward()
+target = mino.Matrix({data = {{1}, {1}}})
+
+loss = mino.loss.cross_entropy(c, target)
+loss:backward()
 
 mino.print_matrix(c)
 mino.print_matrix(target)
@@ -24,6 +25,8 @@ print("b")
 mino.print_matrix(b)
 print("d")
 mino.print_matrix(d)
+print("c")
+mino.print_matrix(c)
 print("loss")
 mino.print_matrix(loss)
 

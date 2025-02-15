@@ -33,31 +33,30 @@ function softmax.softmax_backward(self, respect)
 end
 
 function softmax.softmax(input)
-    -- max logit
-    local max_logit = -math.huge
-    for i = 1, #input.data do
-        if input.data[i] > max_logit then
-            max_logit = input.data[i]
+    local probs = matrix.new({dims = {input.dims[1], input.dims[2]}})
+    for i = 1, input.dims[1] do
+        local max_logit = -math.huge
+        for j = 1, input.dims[2] do
+            if input.data[(i - 1) * input.dims[2] + j] > max_logit then
+                max_logit = input.data[(i - 1) * input.dims[2] + j]
+            end
+        end
+
+        local sum_exp = 0
+        for j = 1, input.dims[2] do
+            probs.data[(i - 1) * input.dims[2] + j] = math.exp(input.data[(i - 1) * input.dims[2] + j] - max_logit)
+            sum_exp = sum_exp + probs.data[(i - 1) * input.dims[2] + j]
+        end
+
+        for j = 1, input.dims[2] do
+            probs.data[(i - 1) * input.dims[2] + j] = probs.data[(i - 1) * input.dims[2] + j] / sum_exp
         end
     end
 
-    -- compute exp
-    local exp = matrix.new({dims = {input.dims[1], input.dims[2]}})
-    local sum_exp = 0
-    for i = 1, #input.data do
-        exp.data[i] = math.exp(input.data[i] - max_logit)
-        sum_exp = sum_exp + exp.data[i]
-    end
+    probs.backward = softmax.softmax_backward
+    probs.operand1 = input
 
-    -- transform to probabilities
-    for i = 1, #input.data do
-        exp.data[i] = exp.data[i] / sum_exp
-    end
-
-    exp.backward = softmax.softmax_backward
-    exp.operand1 = input
-
-    return exp
+    return probs
 end
 
 return softmax 
