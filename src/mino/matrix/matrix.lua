@@ -1,5 +1,6 @@
 local error_handling = require('error_handling')
 local add_tables = require('add_tables')
+local transpose_tables = require('transpose_tables')
 local mul_tables = require('mul_tables')
 local matrix = {}
 
@@ -689,17 +690,6 @@ function matrix:view(dimensions)
 end
 
 function matrix:T(dim1, dim2)
-    -- UTILS
-    local function compute_strides(dims)
-        local strides = {}
-        local stride = 1
-        for i = #dims, 1, -1 do
-            strides[i] = stride
-            stride = stride * dims[i]
-        end
-        return strides
-    end
-    -- UTILS
     local shape = self:shape()
     dim1 = dim1 or #shape
     dim2 = dim2 or 1
@@ -717,26 +707,7 @@ function matrix:T(dim1, dim2)
 
     local result = matrix.new({dims = new_dims, data = 0})
 
-    local orig_strides = compute_strides(shape)
-    local transposed_strides = compute_strides(new_dims)
-
-    for i = 1, #self.data do
-        local indices = {}
-        local remaining = i - 1
-        for j = #shape, 1, -1 do
-            indices[j] = remaining % shape[j] + 1
-            remaining = math.floor(remaining / shape[j])
-        end
-
-        indices[dim1], indices[dim2] = indices[dim2], indices[dim1]
-
-        local new_index = 1
-        for j = 1, #new_dims do
-            new_index = new_index + (indices[j] - 1) * transposed_strides[j]
-        end
-
-        result.data[new_index] = self.data[i]
-    end
+    result = transpose_tables.result(self, result, dim1, dim2, shape, new_dims)
 
     return result
 end
