@@ -267,21 +267,21 @@ local function mul_backward(self, respect)
     end
 
     if operand1.backward then
-        operand1:backward(respect)
+        operand1:backward(result)
     end
 
     result = operand1:copy({data = 0})
     operand1.values = operand1.grad
     result.values = result.data
     sub_dims_divider(1, 0, 0, 0, mul_tables.back, operand1, respect, result)
-    
+
     if operand2.required_grad == true then
         operand1.values = operand1.grad
         sub_dims_divider_one(1, 0, 0, add_tables.one, operand1, respect)
     end
 
     if operand2.backward then
-        operand2:backward(respect)
+        operand2:backward(result)
     end
 end
 -- BACKWARD
@@ -455,7 +455,7 @@ local matrix_mt = {
     end
 }
 
-function matrix:matmul(other)
+local function matmul_naive(self, other)
     -- UTILS
     local function matmul_tables(self, other, result, self_pos, other_pos, res_pos)
         local a_rows, a_cols = a.dims[1], a.dims[2]
@@ -482,6 +482,10 @@ function matrix:matmul(other)
     sub_dims_divider(1, 0, 0, 0, matmul_tables, self, other, result)
 
     return result
+end
+
+function matrix:matmul(other)
+    return matmul_naive(self, other)
 end
 
 function matrix.new(params)
@@ -682,6 +686,70 @@ function matrix:view(dimensions)
             table.insert(self.strides, {big_stride, small_stride * self.td_size, self.sub_dims[i]})
         end
     end
+end
+
+function matrix:T(dim1, dim2)
+    -- UTILS
+    local function compute_strides(dims)
+        local strides = {}
+        local stride = 1
+        for i = #dims, 1, -1 do
+            strides[i] = stride
+            stride = stride * dims[i]
+        end
+        return strides
+    end
+    -- UTILS
+    local shape = self:shape()
+    dim1 = dim1 or #shape
+    dim2 = dim2 or 1
+
+    assert(dim1 >= 1 and dim1 <= #shape, "dim1 is out of range")
+    assert(dim2 >= 1 and dim2 <= #shape, "dim2 is out of range")
+    assert(dim1 ~= dim2, "dim1 and dim2 must be different")
+
+    local new_dims = {}
+    for i = 1, #shape do
+        new_dims[i] = shape[i]
+    end
+    new_dims[dim1] = shape[dim2]
+    new_dims[dim2] = shape[dim1]
+
+    local result = matrix.new({dims = new_dims, data = 0})
+
+    local orig_strides = compute_strides(shape)
+    local transposed_strides = compute_strides(new_dims)
+
+    for i = 1, #self.data do
+        local indices = {}
+        local remaining = i - 1
+        for j = #shape, 1, -1 do
+            indices[j] = remaining % shape[j] + 1
+            remaining = math.floor(remaining / shape[j])
+        end
+
+        indices[dim1], indices[dim2] = indices[dim2], indices[dim1]
+
+        local new_index = 1
+        for j = 1, #new_dims do
+            new_index = new_index + (indices[j] - 1) * transposed_strides[j]
+        end
+
+        result.data[new_index] = self.data[i]
+    end
+
+    return result
+end
+
+function matrix:shape()
+    local dimensions = {}
+
+    for i = 1, #self.sub_dims do
+        table.insert(dimensions, self.sub_dims[i])
+    end
+    table.insert(dimensions, self.dims[1])
+    table.insert(dimensions, self.dims[2])
+    return dimensions
 end
 
 function matrix:print(params)
