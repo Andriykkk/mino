@@ -20,7 +20,8 @@ function linear.new(params, mino)
 end
 
 function linear:forward(input)
-    local output = matrix.matmul(input, self.weights) + self.bias
+    local output = matrix.matmul(input, self.weights)
+    output = output + self.bias
     return output
 end
 

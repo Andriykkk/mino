@@ -21,7 +21,6 @@ function cross_entropy.cross_entropy_backward(self)
     if input.required_grad == true then
         for i = 1, input.dims[1] * input.dims[2] do
             input.grad[i] = input.grad[i] + grad_input.data[i]
-            print(grad_input.data[i])
         end
     end
 
@@ -44,7 +43,7 @@ function cross_entropy.cross_entropy(input, target)
     end
 
     local probs = softmax(input)
-
+    
     local loss = 0
     for i = 1, input.dims[1] do
         for j = 1, input.dims[2] do

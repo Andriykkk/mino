@@ -1,40 +1,72 @@
-package.path = package.path .. ";./error_handling/?.lua;./activations/?.lua;./utils/?.lua;./loss/?.lua;"
-local error_handling = require('error_handling')
+package.path = package.path .. ";./mino/?.lua;./mino/matrix/?.lua;./mino/error_handling/?.lua;"
 local mino = require('mino')
-local activations = require('activations')
+local matrix = mino.Matrix
 
- 
-local a = mino.Matrix({dims = {2, 2}, data = 2})
-local b = mino.Matrix({dims = {1, 2}, data = 1})
-local d = mino.Matrix({dims = {2, 2}, data = 1})
+-- local params = {
+--     {
+--         {
+--             {1, 2, 3},
+--         },
+--         {
+--             {7, 8, 9},
+--         },
+--         {
+--             {13, 14, 15},
+--         }
+--     },
+--     {
+--         {
+--             {2, 2, 3},
+--         },
+--         {
+--             {7, 8, 9},
+--         },
+--         {
+--             {13, 14, 15},
+--         }
+--     }
+-- }
 
-g = d + b
-c = a + g
+-- a = matrix.new({ data = params })
+-- b = matrix.new({data = {
+--             {1, 2, 3},
+--             {4, 5, 6}
+--         }})
+a = matrix.new({ dims = {2, 2, 8, 2}, data = 1 })
+b = matrix.new({ dims = {2, 1, 2, 8}, data = 1 })
+c = a:matmul(b)
+-- a:print({shape = true, strides=true})
+a:print({shape = true, data=false, strides=true})
+b:print({shape = true,  data=false, strides=true})
+c:print({shape = true,  strides=true})
 
-target = mino.Matrix({data = {{1}, {1}}})
+-- x:print({shape = true, grad=true})
 
-loss = mino.loss.cross_entropy(c, target)
-loss:backward()
 
-mino.print_matrix(c)
-mino.print_matrix(target)
 
-print("a")
-mino.print_matrix(a)
-print("b")
-mino.print_matrix(b)
-print("d")
-mino.print_matrix(d)
-print("c")
-mino.print_matrix(c)
-print("loss")
-mino.print_matrix(loss)
+-- package.path = package.path .. ";./error_handling/?.lua;./activations/?.lua;./utils/?.lua;./loss/?.lua;"
+-- local error_handling = require('error_handling')
+-- local mino = require('mino')
+-- local activations = require('activations')
 
-print("a")
-mino.print_matrix_grad(a)
-print("b")
-mino.print_matrix_grad(b)
-print("d")
-mino.print_matrix_grad(d)
-print("loss")
-mino.print_matrix_grad(loss)
+-- x = mino.Matrix({ data = {{0, 0}, {0, 1}, {1, 0}, {1, 1}} })
+-- y = mino.Matrix({ data = {{0}, {1}, {1}, {0}} })
+
+-- layer = mino.layers.Linear({dims = {2, 1}, data = 0.5})
+-- epochs = 2
+-- learning_rate = 0.01
+-- for i = 1, epochs do
+--     local output = layer:forward(x)
+--     local loss = mino.loss.cross_entropy(output, y)
+--     loss:backward()
+
+--     for i = 1, layer.weights.dims[1] * layer.weights.dims[2] do
+--         layer.weights.data[i] = layer.weights.data[i] - learning_rate * layer.weights.grad[i]
+--         layer.weights.grad[i] = 0
+--     end
+--     for i = 1, layer.bias.dims[1] * layer.bias.dims[2] do
+--         layer.bias.data[i] = layer.bias.data[i] - learning_rate * layer.bias.grad[i]
+--         layer.bias.grad[i] = 0
+--     end
+
+-- end
