@@ -1,4 +1,6 @@
 local error_handling = require('error_handling')
+local add_tables = require('add_tables')
+local mul_tables = require('mul_tables')
 local matrix = {}
 
 -- UTILS
@@ -145,7 +147,146 @@ local function sub_dims_divider(dim_index, self_s, other_s, result_s, func, self
         func(self, other, result, self_s, other_s, result_s, params)
     end
 end
+local function sub_dims_divider_one(dim_index, self_s, other_s, func, self, other)
+    if dim_index <= #self.sub_dims and self.sub_dims[dim_index] ~= nil then
+        for i = 0, other.sub_dims[dim_index] - 1 do
+            local self_stride = 0
+            local other_stride = 0
+            if self.sub_dims[dim_index] ~= 1 then
+                self_stride = self_s + self.strides[dim_index][2] * i
+            else
+                self_stride = self_s
+            end
+            sub_dims_divider_one(dim_index + 1, self_stride, other_s + other.strides[dim_index][2] * i, func, self, other)
+        end
+    else
+        func(self, other, self_s, other_s)
+    end
+end
 -- UTILS
+
+-- BACKWARD
+local function add_backward(self, respect)
+    local operand1 = self.operand1
+    local operand2 = self.operand2
+
+    if operand1.required_grad == true then
+        operand1.values = operand1.grad
+        respect.values = respect.data
+        sub_dims_divider_one(1, 0, 0, add_tables.one, operand1, respect)
+    end
+
+    if operand1.backward then
+        operand1:backward(respect)
+    end
+
+
+    if operand2 ~= nil then
+        if operand2.required_grad == true then
+            operand2.values = operand2.grad
+            respect.values = respect.data
+            sub_dims_divider_one(1, 0, 0, add_tables.one, operand2, respect)
+        end
+
+        if operand2.backward then
+            operand2:backward(respect)
+        end
+    end
+end
+local function sub_backward(self, respect)
+    local operand1 = self.operand1
+    local operand2 = self.operand2
+
+    if operand1.required_grad == true then
+        operand1.values = operand1.grad
+        respect.values = respect.data
+        sub_dims_divider_one(1, 0, 0, add_tables.one, operand1, respect)
+    end
+
+    if operand1.backward then
+        operand1:backward(respect)
+    end
+
+    if operand2 ~= nil then
+        for i = 1, #respect.data do
+            respect.data[i] = -respect.data[i]
+        end
+
+        if operand2.required_grad == true then
+            operand2.values = operand2.grad
+            respect.values = respect.data
+            sub_dims_divider_one(1, 0, 0, add_tables.one, operand2, respect)
+        end
+
+        if operand2.backward then
+            operand2:backward(respect)
+        end
+    end
+end
+local function unm_backward(self, respect)
+    local operand1 = self.operand1
+
+    for i = 1, #respect.data do
+        respect.data[i] = -respect.data[i]
+    end
+
+    if operand1.required_grad == true then
+        operand1.values = operand1.grad
+        respect.values = respect.data
+        sub_dims_divider_one(1, 0, 0, add_tables.one, operand1, respect)
+    end
+
+    if operand1.backward then
+        operand1:backward(respect)
+    end
+end
+local function mul_backward(self, respect)
+    local operand1 = self.operand1
+    local operand2 = self.operand2
+
+    if operand2 == nil then
+        for i = 1, #respect.data do
+            respect.data[i] = respect.data[i] * operand1.data[i]
+        end
+
+        if operand1.backward then
+            operand1:backward(respect)
+        end
+        return
+    end
+    
+    local result = operand2:copy({data = 0})
+    operand2.values = operand2.grad
+    respect.values = respect.data
+    result.values = result.data
+    sub_dims_divider(1, 0, 0, 0, mul_tables.back, operand2, respect, result)
+
+    if operand1.required_grad == true then
+        operand2.values = operand2.grad
+        sub_dims_divider_one(1, 0, 0, add_tables.one, operand2, respect)
+    end
+
+    if operand1.backward then
+        operand1:backward(respect)
+    end
+
+    result = operand1:copy({data = 0})
+    operand1.values = operand1.grad
+    result.values = result.data
+    sub_dims_divider(1, 0, 0, 0, mul_tables.back, operand1, respect, result)
+    for i = 1, #operand1.data do
+        print(operand1.data[i])
+    end
+    if operand2.required_grad == true then
+        operand1.values = operand1.grad
+        sub_dims_divider_one(1, 0, 0, add_tables.one, operand1, respect)
+    end
+
+    if operand2.backward then
+        operand2:backward(respect)
+    end
+end
+-- BACKWARD
 
 local matrix_mt = {
     -- TODO: remake indexing when i create multidimensional matrices it should return smaller and smaller matrices
@@ -209,10 +350,17 @@ local matrix_mt = {
             for i = 1, result.size do
                 result.data[i] = self.data[i] + other
             end
+
+            result.backward = add_backward
+            result.operand1 = self
             return result
         end
 
         sub_dims_divider(1, 0, 0, 0, add_tables, self, other, result)
+
+        result.backward = add_backward
+        result.operand1 = self
+        result.operand2 = other
 
         return result
     end,
@@ -245,10 +393,17 @@ local matrix_mt = {
             for i = 1, result.size do
                 result.data[i] = self.data[i] - other
             end
+
+            result.backward = sub_backward
+            result.operand1 = self
             return result
         end
 
         sub_dims_divider(1, 0, 0, 0, subtract_tables, self, other, result)
+
+        result.backward = sub_backward
+        result.operand1 = self
+        result.operand2 = other
 
         return result
     end,
@@ -265,27 +420,12 @@ local matrix_mt = {
             result.data[i] = -self.data[i]
         end
 
+        result.backward = sub_backward
+        result.operand1 = self
+
         return result
     end,
     __mul = function(self, other)
-        -- UTILS
-        local function multiply_tables(self, other, result, self_pos, other_pos, res_pos)
-            for i = 0, result.dims[1] - 1 do
-                for j = 0, result.dims[2] - 1 do
-                    local self_i = i % self.dims[1]
-                    local self_j = j % self.dims[2]
-
-                    local other_i = i % other.dims[1]
-                    local other_j = j % other.dims[2]
-
-                    local self_val = self.data[self_pos + self_i * self.dims[2] + self_j + 1]
-                    local other_val = other.data[other_pos + other_i * other.dims[2] + other_j + 1]
-
-                    result.data[res_pos + i * result.dims[2] + j + 1] = self_val * other_val
-                end
-            end
-        end
-        -- UTILS
         if type(self) == "number" then
             local temp = self
             self = other
@@ -298,10 +438,20 @@ local matrix_mt = {
             for i = 1, result.size do
                 result.data[i] = self.data[i] * other
             end
+
+            result.backward = mul_backward
+            result.operand1 = self
             return result
         end
 
-        sub_dims_divider(1, 0, 0, 0, multiply_tables, self, other, result)
+        self.values = self.data
+        other.values = other.data
+        result.values = result.data
+        sub_dims_divider(1, 0, 0, 0, mul_tables.result, self, other, result)
+
+        result.backward = mul_backward
+        result.operand1 = self
+        result.operand2 = other
 
         return result
     end
@@ -622,6 +772,38 @@ function matrix:print(params)
         io.write("\n")
     end
 
+end
+
+function matrix:copy(params)
+    if params == nil then
+        params = {}
+    end
+
+    local dimensions = {}
+    local mat_params = {dims = dimensions}
+
+    if params.data ~= nil then
+        mat_params.data = params.data
+    end
+    if params.required_grad ~= nil then
+        mat_params.required_grad = params.required_grad
+    end
+
+    for i = 1, #self.sub_dims do
+        table.insert(dimensions, self.sub_dims[i])
+    end
+    table.insert(dimensions, self.dims[1])
+    table.insert(dimensions, self.dims[2])
+
+    local result = matrix.new(mat_params)
+
+    if params.data == nil then
+        for i = 1, self.td_size do
+            result.data[i] = self.data[i]
+        end
+    end
+
+    return result
 end
 
 return matrix

@@ -1,45 +1,17 @@
-package.path = package.path .. ";./mino/?.lua;./mino/matrix/?.lua;./mino/error_handling/?.lua;"
+package.path = package.path .. ";./mino/?.lua;./mino/matrix/?.lua;./mino/error_handling/?.lua;./mino/matrix/operations/?.lua;"
 local mino = require('mino')
 local matrix = mino.Matrix
 
--- local params = {
---     {
---         {
---             {1, 2, 3},
---         },
---         {
---             {7, 8, 9},
---         },
---         {
---             {13, 14, 15},
---         }
---     },
---     {
---         {
---             {2, 2, 3},
---         },
---         {
---             {7, 8, 9},
---         },
---         {
---             {13, 14, 15},
---         }
---     }
--- }
-
--- a = matrix.new({ data = params })
--- b = matrix.new({data = {
---             {1, 2, 3},
---             {4, 5, 6}
---         }})
-a = matrix.new({ dims = {2, 2, 8, 2}, data = 1 })
-b = matrix.new({ dims = {2, 1, 2, 8}, data = 1 })
-c = a:matmul(b)
--- a:print({shape = true, strides=true})
-a:print({shape = true, data=false, strides=true})
-b:print({shape = true,  data=false, strides=true})
+a = matrix.new({ dims = {2, 2, 2, 1}, data = 1 })
+b = matrix.new({ dims = {2, 1, 1, 2}, data = 1 })
+c = a * b
+-- a:print({shape = true, data=false, strides=true})
+-- b:print({shape = true,  data=false, strides=true})
 c:print({shape = true,  strides=true})
+c:backward(matrix.new({ dims = {2, 2, 2, 2}, data = 1 }))
 
+a:print({grad=true, shape = true, data=false, strides=true})
+b:print({grad=true, shape = true, data=false, strides=true})
 -- x:print({shape = true, grad=true})
 
 
