@@ -274,9 +274,7 @@ local function mul_backward(self, respect)
     operand1.values = operand1.grad
     result.values = result.data
     sub_dims_divider(1, 0, 0, 0, mul_tables.back, operand1, respect, result)
-    for i = 1, #operand1.data do
-        print(operand1.data[i])
-    end
+    
     if operand2.required_grad == true then
         operand1.values = operand1.grad
         sub_dims_divider_one(1, 0, 0, add_tables.one, operand1, respect)
