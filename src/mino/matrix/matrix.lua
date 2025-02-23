@@ -13,6 +13,13 @@ local function max(a, b)
         return b
     end
 end
+local function min(a, b)
+    if a < b then
+        return a
+    else
+        return b
+    end
+end
 local function print_table(table)
     for i = 1, #table do
         io.write(string.format("%.4f", table[i]))
@@ -146,8 +153,8 @@ local function sub_dims_divider(dim_index, self_s, other_s, result_s, func, self
     end
 end
 local function sub_dims_divider_one(dim_index, self_s, other_s, func, self, other)
-    if dim_index <= #self.sub_dims and self.sub_dims[dim_index] ~= nil then
-        for i = 0, max(other.sub_dims[dim_index] - 1, self.sub_dims[dim_index] - 1) do
+    if dim_index <= #other.sub_dims then
+        for i = 0, other.sub_dims[dim_index] - 1 do
             local self_stride = 0
             local other_stride = 0
             if self.sub_dims[dim_index] ~= 1 then
@@ -307,11 +314,9 @@ local function matmul_backward(self, respect)
     sub_dims_divider(1, 0, 0, 0, matmul_tables.result, respect, operand_t, result)
 
     if operand1.required_grad == true then
-        for i = 1, #result.data do
-            operand1.values = operand1.grad
-            result.values = result.data
-            sub_dims_divider_one(1, 0, 0, add_tables.one, operand1, result)
-        end
+        operand1.values = operand1.grad
+        result.values = result.data
+        sub_dims_divider_one(1, 0, 0, add_tables.one, operand1, result)
     end
 
     if operand1.backward then
@@ -335,17 +340,30 @@ local function matmul_backward(self, respect)
     sub_dims_divider(1, 0, 0, 0, matmul_tables.result, operand_t, respect, result)
 
     if operand2.required_grad == true then
-        for i = 1, #result.data do
-            operand2.values = operand2.grad
-            result.values = result.data
-            sub_dims_divider_one(1, 0, 0, add_tables.one, operand2, result)
-        end
+        operand2.values = operand2.grad
+        result.values = result.data
+        sub_dims_divider_one(1, 0, 0, add_tables.one, operand2, result)
     end
 
     if operand2.backward then
         operand2:backward(result)
     end
 end
+local function sum_backward(self, respect)
+    local operand1 = self.operand1
+    local result = self.operand1:copy({data = 1})
+
+    if operand1.required_grad == true then
+        for i = 1, #result.data do
+            operand1.grad[i] = operand1.grad[i] + result.data[i]
+        end
+    end
+
+    if operand1.backward then
+        operand1:backward(result)
+    end
+end
+
 -- BACKWARD
 
 local matrix_mt = {
@@ -536,9 +554,42 @@ local function matmul_naive(self, other)
     return result
 end
 
+-- OPERATIONS
 function matrix:matmul(other)
     return matmul_naive(self, other)
 end
+function matrix:T(dim1, dim2)
+    local shape = self:shape()
+    dim1 = dim1 or #shape
+    dim2 = dim2 or 1
+
+    assert(dim1 >= 1 and dim1 <= #shape, "dim1 is out of range")
+    assert(dim2 >= 1 and dim2 <= #shape, "dim2 is out of range")
+    assert(dim1 ~= dim2, "dim1 and dim2 must be different")
+
+    local new_dims = {}
+    for i = 1, #shape do
+        new_dims[i] = shape[i]
+    end
+    new_dims[dim1] = shape[dim2]
+    new_dims[dim2] = shape[dim1]
+
+    local result = matrix.new({dims = new_dims, data = 0})
+
+    result = transpose_tables.result(self, result, dim1, dim2, shape, new_dims)
+
+    return result
+end
+function matrix:sum()
+    local result = matrix.new({dims = {1, 1}})
+    for i = 1, self.size do
+        result.data[1] = result.data[1] + self.data[i]
+    end
+    result.operand1 = self
+    result.backward = sum_backward
+    return result
+end
+-- OPERATIONS
 
 function matrix.new(params)
     -- HELPERS
@@ -738,29 +789,6 @@ function matrix:view(dimensions)
             table.insert(self.strides, {big_stride, small_stride * self.td_size, self.sub_dims[i]})
         end
     end
-end
-
-function matrix:T(dim1, dim2)
-    local shape = self:shape()
-    dim1 = dim1 or #shape
-    dim2 = dim2 or 1
-
-    assert(dim1 >= 1 and dim1 <= #shape, "dim1 is out of range")
-    assert(dim2 >= 1 and dim2 <= #shape, "dim2 is out of range")
-    assert(dim1 ~= dim2, "dim1 and dim2 must be different")
-
-    local new_dims = {}
-    for i = 1, #shape do
-        new_dims[i] = shape[i]
-    end
-    new_dims[dim1] = shape[dim2]
-    new_dims[dim2] = shape[dim1]
-
-    local result = matrix.new({dims = new_dims, data = 0})
-
-    result = transpose_tables.result(self, result, dim1, dim2, shape, new_dims)
-
-    return result
 end
 
 function matrix:shape()

@@ -5,22 +5,16 @@ local matrix = mino.Matrix
 -- a = matrix.new({ data = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}} })
 -- a:T(#a:shape(), #a:shape() - 1):print({shape = true, data=true, strides=true})
 a = matrix.new({ dims = {2, 2, 1, 1}, data = 1 })
-b = matrix.new({ dims = {2, 1, 1, 4}, data = 1 })
+b = matrix.new({ dims = {2, 2, 1, 4}, data = 1 })
 c = a:matmul(b)
 -- a:print({shape = true, data=false, strides=true})
 -- b:print({shape = true,  data=false, strides=true})
 c:print({shape = true,  strides=true})
-c:backward(matrix.new({ dims = {2, 2, 1, 4}, data = 1 }))
+-- c:backward(matrix.new({ dims = {2, 2, 1, 4}, data = 1 }))
+c:sum():backward()
 
 a:print({grad=true, shape = true, data=false, strides=true})
 b:print({grad=true, shape = true, data=false, strides=true})
--- x:print({shape = true, grad=true})
-
-
-
--- package.path = package.path .. ";./error_handling/?.lua;./activations/?.lua;./utils/?.lua;./loss/?.lua;"
--- local error_handling = require('error_handling')
--- local mino = require('mino')
 -- local activations = require('activations')
 
 -- x = mino.Matrix({ data = {{0, 0}, {0, 1}, {1, 0}, {1, 1}} })
