@@ -2,6 +2,7 @@ local error_handling = require('error_handling')
 local add_tables = require('add_tables')
 local transpose_tables = require('transpose_tables')
 local mul_tables = require('mul_tables')
+local matmul_tables = require('matmul_tables')
 local matrix = {}
 
 -- UTILS
@@ -19,6 +20,7 @@ local function print_table(table)
             io.write(", ")
         end
     end
+    io.write("\n")
 end
 local function create_result(self, other)
     -- when one of matrices is scalar
@@ -83,8 +85,6 @@ local function create_result_matmul(self, other)
     -- check dimensions
     if self.dims[2] ~= other.dims[1] then
         error_handling.dimension_error(self, other)
-    elseif self.dims[1] ~= other.dims[2] then
-        error_handling.dimension_error(self, other)
     end
 
     -- make sub_dim of the same size
@@ -116,9 +116,6 @@ local function create_result_matmul(self, other)
     -- copy biggest dims
     local dimensions = {}
     for i = 1, #self.sub_dims do
-        if not(self.dims[1] ~= other.dims[1] or (self.dims[1] ~= 1 or other.dims[1] ~= 1)) then
-            error_handling.dimension_error(self, other)
-        end
         dimensions[i] = max(self.sub_dims[i], other.sub_dims[i])
     end
     table.insert(dimensions, self.dims[1])
@@ -150,7 +147,7 @@ local function sub_dims_divider(dim_index, self_s, other_s, result_s, func, self
 end
 local function sub_dims_divider_one(dim_index, self_s, other_s, func, self, other)
     if dim_index <= #self.sub_dims and self.sub_dims[dim_index] ~= nil then
-        for i = 0, other.sub_dims[dim_index] - 1 do
+        for i = 0, max(other.sub_dims[dim_index] - 1, self.sub_dims[dim_index] - 1) do
             local self_stride = 0
             local other_stride = 0
             if self.sub_dims[dim_index] ~= 1 then
@@ -158,7 +155,12 @@ local function sub_dims_divider_one(dim_index, self_s, other_s, func, self, othe
             else
                 self_stride = self_s
             end
-            sub_dims_divider_one(dim_index + 1, self_stride, other_s + other.strides[dim_index][2] * i, func, self, other)
+            if other.sub_dims[dim_index] ~= 1 then
+                other_stride = other_s + other.strides[dim_index][2] * i
+            else
+                other_stride = other_s
+            end
+            sub_dims_divider_one(dim_index + 1, self_stride, other_stride, func, self, other)
         end
     else
         func(self, other, self_s, other_s)
@@ -279,6 +281,65 @@ local function mul_backward(self, respect)
     if operand2.required_grad == true then
         operand1.values = operand1.grad
         sub_dims_divider_one(1, 0, 0, add_tables.one, operand1, respect)
+    end
+
+    if operand2.backward then
+        operand2:backward(result)
+    end
+end
+local function matmul_backward(self, respect)
+    local operand1 = self.operand1
+    local operand2 = self.operand2
+
+    local shape = operand2:shape()
+
+    -- transpose and matmul operand 2 and respect to get result
+    local operand_t = operand2:copy():T(#shape, #shape - 1)
+
+    local result_dims = operand_t:shape()
+    result_dims[#result_dims  - 1] = respect.dims[1]
+    local result = matrix.new({dims = result_dims})
+
+    operand_t.values = operand_t.data
+    result.values = result.data
+    respect.values = respect.data
+
+    sub_dims_divider(1, 0, 0, 0, matmul_tables.result, respect, operand_t, result)
+
+    if operand1.required_grad == true then
+        for i = 1, #result.data do
+            operand1.values = operand1.grad
+            result.values = result.data
+            sub_dims_divider_one(1, 0, 0, add_tables.one, operand1, result)
+        end
+    end
+
+    if operand1.backward then
+        operand1:backward(result)
+    end
+
+    local shape = operand1:shape()
+
+    -- transpose and matmul operand 1 and respect to get result
+    local shape = operand1:shape()
+    local operand_t = operand1:copy():T(#shape, #shape - 1)
+
+    local result_dims = operand_t:shape()
+    result_dims[#result_dims] = respect.dims[2]
+    local result = matrix.new({dims = result_dims})
+
+    operand_t.values = operand_t.data
+    result.values = result.data
+    respect.values = respect.data
+
+    sub_dims_divider(1, 0, 0, 0, matmul_tables.result, operand_t, respect, result)
+
+    if operand2.required_grad == true then
+        for i = 1, #result.data do
+            operand2.values = operand2.grad
+            result.values = result.data
+            sub_dims_divider_one(1, 0, 0, add_tables.one, operand2, result)
+        end
     end
 
     if operand2.backward then
@@ -457,30 +518,20 @@ local matrix_mt = {
 }
 
 local function matmul_naive(self, other)
-    -- UTILS
-    local function matmul_tables(self, other, result, self_pos, other_pos, res_pos)
-        local a_rows, a_cols = a.dims[1], a.dims[2]
-        local b_rows, b_cols = b.dims[1], b.dims[2]
-
-        for i = 0, a_rows - 1 do
-            for j = 0, b_cols - 1 do
-                local sum = 0
-                for k = 0, a_cols - 1 do
-                    sum = sum + self.data[self_pos + i * a_cols + k + 1] * other.data[other_pos + k * b_cols + j + 1]
-                end
-                result.data[res_pos + i * b_cols + j + 1] = sum
-                print(res_pos + i * b_cols + j + 1, sum)
-            end
-        end
-    end
-    -- UTILS
     if type(other) == "number" then
         error_handling.show_error("Can't multiply matrix with number.")
     end
 
     local result = create_result_matmul(self, other)
 
-    sub_dims_divider(1, 0, 0, 0, matmul_tables, self, other, result)
+    self.values = self.data
+    other.values = other.data
+    result.values = result.data
+    sub_dims_divider(1, 0, 0, 0, matmul_tables.result, self, other, result)
+
+    result.backward = matmul_backward
+    result.operand1 = self
+    result.operand2 = other
 
     return result
 end
@@ -835,7 +886,7 @@ function matrix:copy(params)
     local result = matrix.new(mat_params)
 
     if params.data == nil then
-        for i = 1, self.td_size do
+        for i = 1, self.size do
             result.data[i] = self.data[i]
         end
     end

@@ -2,18 +2,18 @@ package.path = package.path .. ";./mino/?.lua;./mino/matrix/?.lua;./mino/error_h
 local mino = require('mino')
 local matrix = mino.Matrix
 
-a = matrix.new({ data = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}} })
-a:T():print({shape = true, data=true, strides=true})
--- a = matrix.new({ dims = {2, 2, 2, 1}, data = 1 })
--- b = matrix.new({ dims = {2, 1, 1, 2}, data = 1 })
--- c = a * b
+-- a = matrix.new({ data = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}} })
+-- a:T(#a:shape(), #a:shape() - 1):print({shape = true, data=true, strides=true})
+a = matrix.new({ dims = {2, 2, 1, 1}, data = 1 })
+b = matrix.new({ dims = {2, 1, 1, 4}, data = 1 })
+c = a:matmul(b)
 -- a:print({shape = true, data=false, strides=true})
 -- b:print({shape = true,  data=false, strides=true})
--- c:print({shape = true,  strides=true})
--- c:backward(matrix.new({ dims = {2, 2, 2, 2}, data = 1 }))
+c:print({shape = true,  strides=true})
+c:backward(matrix.new({ dims = {2, 2, 1, 4}, data = 1 }))
 
--- a:print({grad=true, shape = true, data=false, strides=true})
--- b:print({grad=true, shape = true, data=false, strides=true})
+a:print({grad=true, shape = true, data=false, strides=true})
+b:print({grad=true, shape = true, data=false, strides=true})
 -- x:print({shape = true, grad=true})
 
 
