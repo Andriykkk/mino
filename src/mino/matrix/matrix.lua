@@ -349,7 +349,7 @@ local function matmul_backward(self, respect)
         operand2:backward(result)
     end
 end
-local function sum_backward(self, respect)
+local function sum_backward(self)
     local operand1 = self.operand1
     local result = self.operand1:copy({data = 1})
 
@@ -363,7 +363,24 @@ local function sum_backward(self, respect)
         operand1:backward(result)
     end
 end
+local function log_backward(self, respect)
+    local operand1 = self.operand1
+    local result = operand1:copy({data = 0})
 
+    for i = 1, #result.size do
+        result.data[i] = respect.data[i] / operand1.data[i]
+    end
+
+    if operand1.required_grad == true then
+        for i = 1, #result.data do
+            operand1.grad[i] = operand1.grad[i] + result.data[i]
+        end
+    end
+
+    if operand1.backward then
+        operand1:backward(result)
+    end
+end
 -- BACKWARD
 
 local matrix_mt = {
@@ -589,6 +606,19 @@ function matrix:sum()
     result.backward = sum_backward
     return result
 end
+function matrix:log()
+    local result = self:copy()
+
+    for i = 1, result.size do
+        result.data[i] = math.log(result.data[i])
+    end
+
+    result.operand1 = self
+    result.backward = log_backward
+
+    return result
+end
+
 -- OPERATIONS
 
 function matrix.new(params)
