@@ -1,6 +1,17 @@
 local matrix = require('matrix')
 local relu = {}
 
+local relu_mt = {
+    __index = {
+        new = relu.new
+    },
+    __call = function(self, input)
+        return self.relu(input)
+    end
+}
+
+setmetatable(relu, relu_mt)
+
 function relu.relu(input)
     local result = input:copy({data = 0})
 

@@ -1,6 +1,15 @@
 local matrix = require('matrix')
 local softmax = {}
 
+local softmax_mt = {
+    __index = {
+        new = softmax.new
+    },
+    __call = function(self, input) return self.softmax(input) end
+}
+
+setmetatable(softmax, softmax_mt)
+
 -- UTILS
 local function sub_dims_divider_single(dim_index, self_s, func, self)
     if dim_index <= #self.sub_dims then
