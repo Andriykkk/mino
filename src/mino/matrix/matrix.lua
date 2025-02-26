@@ -901,7 +901,7 @@ function matrix:print(params)
         print_dim(self.grad, 1, 0)
     end
 
-    if params.strides == true then
+    if params.strides == true and #self.strides ~= 0 then
         io.write("Strides = ")
         for i = 1, #self.strides do
             io.write("{")

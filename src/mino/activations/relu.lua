@@ -36,4 +36,8 @@ function relu.relu_backward(self, respect)
     end
 end
 
+function relu.new()
+    return relu.relu
+end
+
 return relu

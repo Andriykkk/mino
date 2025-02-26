@@ -7,9 +7,8 @@ local linear_mt = {
 }
 
 function linear.new(params)
-    local weights = matrix.Matrix({dims = params.dims, data = params.data})
-    params.dims[#params.dims - 1] = 1
-    local bias = matrix.Matrix({dims = params.dims, data = params.data})
+    local weights = matrix.new({dims = { params.input, params.output }, data = params.data})
+    local bias = matrix.new({dims = { 1, params.output }, data = params.data})
 
     local layer = {weights = weights, bias = bias}
 

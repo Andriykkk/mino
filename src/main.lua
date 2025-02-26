@@ -1,40 +1,66 @@
-package.path = package.path .. ";./mino/?.lua;./mino/matrix/?.lua;./mino/error_handling/?.lua;./mino/matrix/operations/?.lua;"
+package.path = package.path .. ";./mino/?.lua;"
 local mino = require('mino')
 local matrix = mino.Matrix
+local layers = mino.layers
+local activations = mino.activations
+local loss = mino.loss
+local optimisers = mino.optimisers
 
+a = matrix.new({ data = {{1.0, 2.0, 3.0}, {4.0, 5.0, 6.0}} })
+b = activations.softmax.softmax(a)
+b:print({data = true, shape = true, strides = true})
+b:sum():backward()
+a:print({grad = true, data = true, shape = true, strides = true})
 -- a = matrix.new({ data = {{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}} })
 -- a:T(#a:shape(), #a:shape() - 1):print({shape = true, data=true, strides=true})
-a = matrix.new({ dims = {2, 2, 1, 1}, data = 1 })
-b = matrix.new({ dims = {2, 2, 1, 4}, data = 1 })
-c = a:matmul(b)
--- a:print({shape = true, data=false, strides=true})
--- b:print({shape = true,  data=false, strides=true})
-c:print({shape = true,  strides=true})
--- c:backward(matrix.new({ dims = {2, 2, 1, 4}, data = 1 }))
-c:sum():backward()
+-- a = matrix.new({ dims = {2, 2, 1, 1}, data = 1 })
+-- b = matrix.new({ dims = {2, 2, 1, 4}, data = 1 })
+-- c = a:matmul(b)
+-- -- a:print({shape = true, data=false, strides=true})
+-- -- b:print({shape = true,  data=false, strides=true})
+-- c:print({shape = true,  strides=true})
+-- -- c:backward(matrix.new({ dims = {2, 2, 1, 4}, data = 1 }))
+-- c:sum():backward()
 
-a:print({grad=true, shape = true, data=false, strides=true})
-b:print({grad=true, shape = true, data=false, strides=true})
--- local activations = require('activations')
+-- a:print({grad=true, shape = true, data=false, strides=true})
+-- b:print({grad=true, shape = true, data=false, strides=true})
 
--- x = mino.Matrix({ data = {{0, 0}, {0, 1}, {1, 0}, {1, 1}} })
--- y = mino.Matrix({ data = {{0}, {1}, {1}, {0}} })
 
--- layer = mino.layers.Linear({dims = {2, 1}, data = 0.5})
--- epochs = 2
--- learning_rate = 0.01
--- for i = 1, epochs do
---     local output = layer:forward(x)
---     local loss = mino.loss.cross_entropy(output, y)
---     loss:backward()
+-- -- mnist
+-- local model = mino.Parameters()
+-- model:add(layers.linear.new({ input = 28*28, output = 128}))
+-- model:add(activations.relu.new())
+-- model:add(layers.linear.new({ input = 128, output = 64}))
+-- model:add(activations.relu.new())
+-- model:add(layers.linear.new({ input = 64, output = 10}))
 
---     for i = 1, layer.weights.dims[1] * layer.weights.dims[2] do
---         layer.weights.data[i] = layer.weights.data[i] - learning_rate * layer.weights.grad[i]
---         layer.weights.grad[i] = 0
+-- local criterion = loss.cross_entropy.new()
+-- local optimiser = optimisers.sgd.new({ learning_rate = 0.01 })
+
+-- local epoch = 5
+-- for i = 1, epoch do
+--     -- model.train()
+--     for input, target in ipairs(trainset) do
+--         optimiser.zero_grad(model)
+
+--         output = model:forward(input)
+--         loss = criterion:forward(output, target)
+--         loss:backward()
+--         optimiser.step(model)
 --     end
---     for i = 1, layer.bias.dims[1] * layer.bias.dims[2] do
---         layer.bias.data[i] = layer.bias.data[i] - learning_rate * layer.bias.grad[i]
---         layer.bias.grad[i] = 0
---     end
 
+--     print("Epoch " .. i .. " loss: " .. loss)
 -- end
+
+-- -- modal.eval()
+-- total = 0
+-- correct = 0
+-- for input, target in ipairs(testset) do
+--     output = model:forward(input)
+--     predicted = torch.max(output, 1)
+--     total = total + 1
+--     if predicted[1] == target then
+--         correct = correct + 1
+--     end
+-- end
+-- print("Accuracy: ", correct / total)
