@@ -7,10 +7,17 @@ local linear_mt = {
 }
 
 function linear.new(params)
-    local weights = matrix.new({dims = { params.input, params.output }, data = params.data})
-    local bias = matrix.new({dims = { 1, params.output }, data = params.data})
+    if params.initialisation == nil then
+        params.initialisation = "xavier"
+    end
+    local weights = matrix.new({dims = { params.input, params.output }})
+    local bias = matrix.new({dims = { 1, params.output }})
 
-    local layer = {weights = weights, bias = bias}
+    if params.initialisation == "xavier" then
+        matrix.initialise_matrix(weights, "xavier")
+    end
+
+    local layer = {weights = weights, bias = bias, parameters = {weights, bias}}
 
     setmetatable(layer, linear_mt)
 
@@ -18,7 +25,7 @@ function linear.new(params)
 end
 
 function linear:forward(input)
-    local output = matrix.matmul(input, self.weights)
+    local output = input:matmul(self.weights)
     output = output + self.bias
     return output
 end

@@ -3,6 +3,7 @@ local add_tables = require('add_tables')
 local transpose_tables = require('transpose_tables')
 local mul_tables = require('mul_tables')
 local matmul_tables = require('matmul_tables')
+local utils = require('utils')
 local matrix = {}
 
 -- UTILS
@@ -42,9 +43,9 @@ local function create_result(self, other)
     end
 
     -- check dimensions
-    if not(self.dims[1] ~= other.dims[1] or (self.dims[1] ~= 1 or other.dims[1] ~= 1)) then
+    if not (self.dims[1] == other.dims[1] or self.dims[1] == 1 or other.dims[1] == 1) then
         error_handling.dimension_error(self, other)
-    elseif not(self.dims[2] ~= other.dims[2] or (self.dims[2] ~= 1 or other.dims[2] ~= 1)) then
+    elseif not (self.dims[2] == other.dims[2] or self.dims[2] == 1 or other.dims[2] == 1) then
         error_handling.dimension_error(self, other)
     end
 
@@ -297,12 +298,11 @@ end
 local function matmul_backward(self, respect)
     local operand1 = self.operand1
     local operand2 = self.operand2
-
     local shape = operand2:shape()
 
     -- transpose and matmul operand 2 and respect to get result
     local operand_t = operand2:copy():T(#shape, #shape - 1)
-
+    
     local result_dims = operand_t:shape()
     result_dims[#result_dims  - 1] = respect.dims[1]
     local result = matrix.new({dims = result_dims})
@@ -618,7 +618,30 @@ function matrix:log()
 
     return result
 end
-
+-- function matrix:max()
+--     local result = matrix.new({dims = {1, 1}})
+--     result.data[1] = self.data[1]
+--     for i = 2, self.size do
+--         if self.data[i] > result.data[1] then
+--             result.data[1] = self.data[i]
+--         end
+--     end
+--     result.operand1 = self
+--     result.backward = max_backward
+--     return result
+-- end
+-- function matrix:argmax()
+--     local result = matrix.new({dims = {1, 1}})
+--     result.data[1] = 1
+--     for i = 2, self.size do
+--         if self.data[i] > self.data[result.data[1]] then
+--             result.data[1] = i
+--         end
+--     end
+--     result.operand1 = self
+--     result.backward = argmax_backward
+--     return result
+-- end
 -- OPERATIONS
 
 function matrix.new(params)
@@ -738,15 +761,15 @@ function matrix.new(params)
     if params.fill_value ~= nil then
         if type(params.fill_value) == "number" then
             fill_table(mat.data, mat.size, params.fill_value)
-        elseif type(params.fill_value) == "ones" then
+        elseif params.fill_value == "ones" then
             fill_table(mat.data, mat.size, 1)
-        elseif type(params.fill_value) == "zeros" then
+        elseif params.fill_value == "zeros" then
             fill_table(mat.data, mat.size, 0)
-        elseif type(params.fill_value) == "random" then
+        elseif params.fill_value == "random" then
             for i = 1, mat.size do
                 mat.data[i] = math.random()
             end
-        elseif type(params.fill_value) == "normal" then
+        elseif params.fill_value == "normal" then
             for i = 1, mat.size do
                 mat.data[i] = math.random()
             end
@@ -785,6 +808,14 @@ function matrix.new(params)
     
     return mat
 end 
+
+function matrix.initialise_matrix(matrix, type)
+    if type == "xavier" then
+        for i = 1, matrix.size do
+            matrix.data[i] = utils.random.xavierUniform(matrix.dims[1], matrix.dims[2])
+        end
+    end
+end
 
 function matrix:view(dimensions)
     local total_size = 1

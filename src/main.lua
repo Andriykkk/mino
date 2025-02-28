@@ -1,113 +1,117 @@
-package.path = package.path .. ";./mino/?.lua;"
+package.path = package.path .. ";./mino/?.lua;./utils/datasets/?.lua;./utils/?.lua;"
 local mino = require('mino')
+local utils = require('utils')
 local matrix = mino.Matrix
 local layers = mino.layers
 local activations = mino.activations
 local loss = mino.loss
 local optimisers = mino.optimisers
+local mnist_dataset = require('mnist_dataset')
+local progress_bar = require('progress_bar')
 
-a = matrix.new({ data = {{1.0, 2.0, 3.0}, {1.0, 2.0, 3.0}} })
-target = matrix.new({ data = {{2}, {1}}})
-b = loss.cross_entropy(a, target)
-b:print({data = true, shape = true, strides = true})
-b:sum():backward()
-a:print({grad = true, data = true, shape = true, strides = true})
-
-local function read_scv(file_path)
-    local data = {}
-
-    local file = io.open(file_path, "r")
-    if not file then
-        return nil
-    end
-
-    -- local index = 0
-    for line in file:lines() do
-        -- index = index + 1
-        -- if index > 100 then
-        --     break
-        -- end
-        local row = {}
-        for value in string.gmatch(line, "([^,]+)") do
-            table.insert(row, tonumber(value))
-        end
-
-        local label = row[1]
-
-        local pixels = {}
-        for i = 2, #row do
-            table.insert(pixels, row[i]/255.0)
-        end
-
-        table.insert(data, {label = label, pixels = pixels})
-    end
-
-    file:close()
-
-    return data
-end
-
-local function print_mnist(data, limit)
-    for i = 1, limit do
-        local row = data[i]
-        local label = row.label
-        local pixels = row.pixels
-
-        print("Label: " .. label)
-
-        for j = 1, 28 do
-            for k = 1, 28 do
-                local pixel = pixels[(j - 1) * 28 + k]
-                if pixel > 0.7 then
-                    io.write("#")
-                elseif pixel > 0.3 then
-                    io.write(".")
-                else
-                    io.write(" ")
-                end
-            end
-            io.write("\n")
-        end
-    end
-end
-
--- local dataset = read_scv('../mnist/mnist_train.csv')
--- print_mnist(dataset, 5)
-
--- -- mnist
--- local model = mino.Parameters()
--- model:add(layers.linear.new({ input = 28*28, output = 128}))
--- model:add(activations.relu.new())
--- model:add(layers.linear.new({ input = 128, output = 64}))
--- model:add(activations.relu.new())
--- model:add(layers.linear.new({ input = 64, output = 10}))
-
+-- local tensor = matrix.new({ data = 0.01, dims = {784, 10} })
+-- local bias = matrix.new({ data = 0.01, dims = {1,10} })
+-- local input = matrix.new({ data = 0.01, dims = {2, 784} })
+-- local target = matrix.new({ data = {{5} , {5}}, dims = {2, 1} })
 -- local criterion = loss.cross_entropy.new()
--- local optimiser = optimisers.sgd.new({ learning_rate = 0.01 })
+-- local model = mino.Parameters()
+-- model:add(tensor)
+-- model:add(bias)
+-- local relu = activations.relu.new()
+-- local optimiser = optimisers.sgd.new({ parameters = model, learning_rate = 0.1 })
 
--- local epoch = 5
--- for i = 1, epoch do
---     -- model.train()
---     for input, target in ipairs(trainset) do
---         optimiser.zero_grad(model)
 
---         output = model:forward(input)
---         loss = criterion:forward(output, target)
---         loss:backward()
---         optimiser.step(model)
---     end
+-- for i = 1, 5 do
+--     result = input:matmul(tensor) + bias
+--     result = relu(result)
+--     loss = criterion(result, target)
+--     loss:backward()
 
---     print("Epoch " .. i .. " loss: " .. loss)
+--     optimiser:step()
+--     optimiser:zero_grad()
+    
+--     loss:print()
 -- end
 
--- -- modal.eval()
+
+local function get_batches(data, batch_size)
+    local batches = {}
+
+    for i = 1, #data, batch_size do
+        local input = {}
+        local target = {}
+        for j = i, math.min(i + batch_size - 1, #data) do
+            local row = data[j]
+            local label = row.label
+            local pixels = row.pixels
+
+            table.insert(input, pixels)
+            table.insert(target, {label})
+        end
+        table.insert(batches, {input, target})
+    end
+
+    return batches
+end
+
+local dataset = mnist_dataset.read_csv('../mnist/mnist_train.csv')
+local training_set = get_batches(dataset, 64)
+
+local testing_dataset = mnist_dataset.read_csv('../mnist/mnist_test.csv')
+local testing_set = get_batches(testing_dataset, 64)
+
+-- mnist
+local model = mino.Parameters()
+model:add(layers.linear.new({ input = 28*28, output = 128}))
+model:add(activations.relu.new())
+model:add(layers.linear.new({ input = 128, output = 64}))
+model:add(activations.relu.new())
+model:add(layers.linear.new({ input = 64, output = 10}))
+
+local sequential = mino.Sequential(model.parameters)
+
+local criterion = loss.cross_entropy.new()
+local optimiser = optimisers.sgd.new({ parameters = model, learning_rate = 0.1 })
+
+local bar = progress_bar:new(#training_set)
+
+local epoch = 5
+for i = 1, epoch do
+    model.train()
+    for i = 1, #training_set do
+        local input = training_set[i][1]
+        local target = training_set[i][2]
+
+        optimiser.zero_grad(model)
+
+        local input_matrix = matrix.new({ data = input })
+        local target_matrix = matrix.new({ data = target })
+        
+        output = sequential:forward(input_matrix)
+        loss = criterion(output, target_matrix)
+        loss:backward()
+        optimiser:step()
+        bar:step({ loss = loss.data[1]})
+        
+    end
+end
+
+-- print("Testing")
+-- model.eval()
 -- total = 0
 -- correct = 0
--- for input, target in ipairs(testset) do
---     output = model:forward(input)
---     predicted = torch.max(output, 1)
+-- for i = 1, #testing_set do
+--     local input = testing_set[i][1]
+--     local target = testing_set[i][2]
+
+--     local input_matrix = matrix.new({ data = input })
+--     local target_matrix = matrix.new({ data = target })
+
+--     output = sequential:forward(input_matrix)
+--     predicted = output:argmax()
 --     total = total + 1
---     if predicted[1] == target then
+--     print(predicted.data[1], target_matrix.data[1])
+--     if predicted.data[1] == target_matrix.data[1] then
 --         correct = correct + 1
 --     end
 -- end
