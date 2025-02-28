@@ -54,11 +54,11 @@ local function get_batches(data, batch_size)
     return batches
 end
 
-local dataset = mnist_dataset.read_csv('../mnist/mnist_train.csv')
+local dataset = mnist_dataset.read_csv('../mnist/mnist_train.csv', 5000)
 local training_set = get_batches(dataset, 64)
 
 local testing_dataset = mnist_dataset.read_csv('../mnist/mnist_test.csv')
-local testing_set = get_batches(testing_dataset, 64)
+local testing_set = get_batches(testing_dataset, 1)
 
 -- mnist
 local model = mino.Parameters()
@@ -75,7 +75,7 @@ local optimiser = optimisers.sgd.new({ parameters = model, learning_rate = 0.1 }
 
 local bar = progress_bar:new(#training_set)
 
-local epoch = 5
+local epoch = 1
 for i = 1, epoch do
     model.train()
     for i = 1, #training_set do
@@ -96,23 +96,23 @@ for i = 1, epoch do
     end
 end
 
--- print("Testing")
--- model.eval()
--- total = 0
--- correct = 0
--- for i = 1, #testing_set do
---     local input = testing_set[i][1]
---     local target = testing_set[i][2]
+print("Testing")
+model.eval()
+total = 0
+correct = 0
+for i = 1, #testing_set do
+    local input = testing_set[i][1]
+    local target = testing_set[i][2]
 
---     local input_matrix = matrix.new({ data = input })
---     local target_matrix = matrix.new({ data = target })
+    local input_matrix = matrix.new({ data = input })
+    local target_matrix = matrix.new({ data = target })
 
---     output = sequential:forward(input_matrix)
---     predicted = output:argmax()
---     total = total + 1
---     print(predicted.data[1], target_matrix.data[1])
---     if predicted.data[1] == target_matrix.data[1] then
---         correct = correct + 1
---     end
--- end
--- print("Accuracy: ", correct / total)
+    output = sequential:forward(input_matrix)
+    predicted = output:argmax()
+
+    total = total + 1
+    if predicted.data[1] == target_matrix.data[1] then
+        correct = correct + 1
+    end
+end
+print("Accuracy: ", correct / total)

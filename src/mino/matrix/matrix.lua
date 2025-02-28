@@ -381,6 +381,14 @@ local function log_backward(self, respect)
         operand1:backward(result)
     end
 end
+local function max_backward(self, respect)
+    print("BACKWARD NOT IMPLEMENTED FOR MAX")
+    os.exit(1)
+end
+local function argmax_backward(self, respect)
+    print("BACKWARD NOT IMPLEMENTED FOR ARGMAX")
+    os.exit(1)
+end
 -- BACKWARD
 
 local matrix_mt = {
@@ -618,30 +626,116 @@ function matrix:log()
 
     return result
 end
--- function matrix:max()
---     local result = matrix.new({dims = {1, 1}})
---     result.data[1] = self.data[1]
---     for i = 2, self.size do
---         if self.data[i] > result.data[1] then
---             result.data[1] = self.data[i]
---         end
---     end
---     result.operand1 = self
---     result.backward = max_backward
---     return result
--- end
--- function matrix:argmax()
---     local result = matrix.new({dims = {1, 1}})
---     result.data[1] = 1
---     for i = 2, self.size do
---         if self.data[i] > self.data[result.data[1]] then
---             result.data[1] = i
---         end
---     end
---     result.operand1 = self
---     result.backward = argmax_backward
---     return result
--- end
+function matrix:max(dim)
+    if dim == nil then
+        dim = 0
+    end
+    assert(#self.sub_dims == 0, "Only support 2d matrix for now.")
+    assert(dim >= 0 and dim <= 2, "dim must be 1 or 2.")
+
+    if dim == 0 or dim == nil then
+        local result = matrix.new({dims = {1, 1}})
+        result.data[1] = self.data[1]
+        for i = 2, self.size do
+            if self.data[i] > result.data[1] then
+                result.data[1] = self.data[i]
+            end
+        end
+        result.operand1 = self
+        result.backward = max_backward
+        return result
+    end
+
+    if dim == 1 then
+        local result = matrix.new({dims = {self.dims[1], 1}})
+        for i = 1, self.dims[1] do
+            local start_idx = (i - 1) * self.dims[2] + 1
+            result.data[i] = self.data[start_idx]
+            for j = start_idx + 1, start_idx + self.dims[2] - 1 do
+                if self.data[j] > result.data[i] then
+                    result.data[i] = self.data[j]
+                end
+            end
+        end
+        result.operand1 = self
+        result.backward = max_backward
+        return result
+    end
+    if dim == 2 then
+        local result = matrix.new({dims = {1, self.dims[2]}})
+        for j = 1, self.dims[2] do
+            result.data[j] = self.data[j]
+            for i = 2, self.dims[1] do
+                local idx = (i - 1) * self.dims[2] + j
+                if self.data[idx] > result.data[j] then
+                    result.data[j] = self.data[idx]
+                end
+            end
+        end
+        result.operand1 = self
+        result.backward = max_backward
+        return result
+    end
+end
+function matrix:argmax(dim)
+    if dim == nil then
+        dim = 0
+    end
+    assert(#self.sub_dims == 0, "Only support 2d matrix for now.")
+    assert(dim >= 0 and dim <= 2, "dim must be 1 or 2.")
+
+    if dim == 0 or dim == nil then
+        local max_idx = 1
+        for i = 2, self.size do
+            if self.data[i] > self.data[max_idx] then
+                max_idx = i
+            end
+        end
+        local result = matrix.new({dims = {1, 1}, data = max_idx - 1})
+        result.operand1 = self
+        result.backward = argmax_backward
+        return result
+    end
+
+    if dim == 1 then
+        local result = matrix.new({dims = {self.dims[1], 1}})
+        for row = 1, self.dims[1] do
+            local row_start = (row-1)*self.dims[2] + 1
+            local max_val = self.data[row_start]
+            local max_col = 1
+            for col = 2, self.dims[2] do
+                local idx = row_start + col - 1
+                if self.data[idx] > max_val then
+                    max_val = self.data[idx]
+                    max_col = col
+                end
+            end
+            result.data[row] = max_col - 1
+        end
+        result.operand1 = self
+        result.backward = argmax_backward
+        return result
+    end
+    
+    if dim == 2 then
+        local result = matrix.new({dims = {1, self.dims[2]}})
+        for col = 1, self.dims[2] do
+            local max_val = self.data[col]
+            local max_row = 1
+            for row = 2, self.dims[1] do
+                local idx = (row-1)*self.dims[2] + col
+                if self.data[idx] > max_val then
+                    max_val = self.data[idx]
+                    max_row = row
+                end
+            end
+            result.data[col] = max_row - 1
+        end
+        result.operand1 = self
+        result.backward = argmax_backward
+        return result
+    end
+end
 -- OPERATIONS
 
 function matrix.new(params)

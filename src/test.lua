@@ -1,13 +1,8 @@
 package.path = package.path .. ";./mino/?.lua;./utils/datasets/?.lua;./utils/?.lua;"
-local progress_bar = require('progress_bar')
+local mino = require('mino')
+local utils = require('utils')
+local matrix = mino.Matrix
 
-local total_steps = 100000
-local bar = progress_bar:new(total_steps)
-
-for i = 1, total_steps do
-    bar:step({learning_rate = 1.12, momentum = 0.9})
-    local t = os.clock()
-    while os.clock() - t < 0.001 do end
-end
-
-print()
+local a = matrix.new({ data = {{1, 2, 3}, {4, 5, 6}}, dims = {2, 3} })
+local b = a:argmax()
+b:print()
