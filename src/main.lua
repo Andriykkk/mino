@@ -68,16 +68,21 @@ model:add(layers.linear.new({ input = 128, output = 64}))
 model:add(activations.relu.new())
 model:add(layers.linear.new({ input = 64, output = 10}))
 
+model.forward = function(self)
+    print("Forward")
+end
+
+model:forward()
+
 local sequential = mino.Sequential(model.parameters)
 
 local criterion = loss.cross_entropy.new()
-local optimiser = optimisers.sgd.new({ parameters = model, learning_rate = 0.1 })
+local optimiser = optimisers.sgd_momentum.new({ parameters = model, learning_rate = 0.01, momentum = 0.3 })
 
-local bar = progress_bar:new(#training_set)
-
-local epoch = 1
+local epoch = 2
 for i = 1, epoch do
     model.train()
+    local bar = progress_bar:new(#training_set)
     for i = 1, #training_set do
         local input = training_set[i][1]
         local target = training_set[i][2]
@@ -92,8 +97,8 @@ for i = 1, epoch do
         loss:backward()
         optimiser:step()
         bar:step({ loss = loss.data[1]})
-        
     end
+    print("Epoch ", i, " Loss: ", loss.data[1])
 end
 
 print("Testing")
@@ -116,3 +121,12 @@ for i = 1, #testing_set do
     end
 end
 print("Accuracy: ", correct / total)
+
+
+-- function print_keys(table)
+--     local keys = ""
+--     for key, value in pairs(table) do
+--         keys = keys .. key .. " "
+--     end
+--     print(keys)
+-- end

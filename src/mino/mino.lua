@@ -20,6 +20,7 @@ local loss = {
 
 local optimisers = {
     sgd = require('sgd'),
+    sgd_momentum = require('sgd_momentum')
 }
 
 mino.Matrix = matrix
